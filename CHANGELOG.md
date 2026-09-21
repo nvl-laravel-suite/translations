@@ -4,6 +4,8 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-21
+
 ### Added
 
 - Added platform-only source tooling, tenant copy overrides, isolated private
