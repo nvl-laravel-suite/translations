@@ -4,6 +4,13 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-23
+
+### Fixed
+
+- Preserve host-provided tenant repository and translation update, import, and
+  scan action bindings when the Translations service provider registers.
+
 ## [2.0.1] - 2026-09-22
 
 ### Added
