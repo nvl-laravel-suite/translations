@@ -3,7 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Auth\Access\AuthorizationException;
+use Nvl\Translations\Contracts\ImportTranslationsContract;
+use Nvl\Translations\Contracts\ScanTranslationsContract;
+use Nvl\Translations\Contracts\TenantTranslationRepository;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
+use Nvl\Translations\Contracts\UpdateTranslationEntryContract;
 use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Providers\TranslationsServiceProvider;
 
@@ -23,6 +27,27 @@ test('consumer configuration wins while omitted nested package defaults remain a
         ->and(config('translations.export_targets.source'))->toBe([])
         ->and(config('translations.import.conflict_strategy'))->toBe('fail')
         ->and(config('translations.scan_allowlist'))->toBe(['errors.*']);
+});
+
+test('consumer service bindings survive package provider registration', function (): void {
+    $contracts = [
+        TenantTranslationRepository::class,
+        UpdateTranslationEntryContract::class,
+        ImportTranslationsContract::class,
+        ScanTranslationsContract::class,
+    ];
+    $consumerBindings = [];
+
+    foreach ($contracts as $contract) {
+        $consumerBindings[$contract] = app($contract);
+        app()->instance($contract, $consumerBindings[$contract]);
+    }
+
+    (new TranslationsServiceProvider(app()))->register();
+
+    foreach ($consumerBindings as $contract => $instance) {
+        expect(app($contract))->toBe($instance);
+    }
 });
 
 test('package validation translations load for supported locales', function (): void {

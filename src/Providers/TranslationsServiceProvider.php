@@ -75,17 +75,17 @@ final class TranslationsServiceProvider extends ServiceProvider
             $this->app->make(TenantResourceRegistry::class),
             $this->app->make(TenantAdoptionRegistry::class),
         );
-        $this->app->scoped(TenantTranslationRepository::class, DatabaseTenantTranslationRepository::class);
+        $this->app->scopedIf(TenantTranslationRepository::class, DatabaseTenantTranslationRepository::class);
 
-        $this->app->bind(
+        $this->app->bindIf(
             UpdateTranslationEntryContract::class,
             UpdateTranslationEntryAction::class
         );
-        $this->app->bind(
+        $this->app->bindIf(
             ImportTranslationsContract::class,
             ImportTranslationsAction::class
         );
-        $this->app->bind(
+        $this->app->bindIf(
             ScanTranslationsContract::class,
             ScanTranslationsAction::class
         );
