@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nvl\Translations\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Nvl\Data\Data\PaginatedCollection;
 use Nvl\Filterable\Http\QueryFilterSetFactory;
@@ -15,13 +16,13 @@ use Nvl\Translations\Actions\Sync\ExportTranslationsAction;
 use Nvl\Translations\Actions\Sync\ImportTranslationsAction;
 use Nvl\Translations\Actions\Sync\ScanTranslationsAction;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
+use Nvl\Translations\Data\ExportTranslationsData;
+use Nvl\Translations\Data\ImportTranslationsData;
 use Nvl\Translations\Data\TranslationEntryPayload;
+use Nvl\Translations\Data\TranslationIndexQueryData;
 use Nvl\Translations\Data\UpdateTranslationEntryPayload;
 use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Enums\TranslationsResponseCode;
-use Nvl\Translations\Http\Requests\ExportTranslationsRequest;
-use Nvl\Translations\Http\Requests\ImportTranslationsRequest;
-use Nvl\Translations\Http\Requests\TranslationIndexRequest;
 use Nvl\Translations\Models\TranslationEntry;
 use Nvl\Translations\Services\TranslationEntryFilterSchema;
 
@@ -40,23 +41,37 @@ final class TranslationsApiController extends Controller
     /**
      * Return paginated translation entries for API consumers.
      *
-     * @param  TranslationIndexRequest  $request  Validated query request
+     * @param  Request  $request  Catalog query request
      * @param  ListTranslationEntriesAction  $action  Listing action
      * @return JsonResponse Paginated translation entries
      */
     public function index(
-        TranslationIndexRequest $request,
+        Request $request,
         ListTranslationEntriesAction $action,
         ListTranslationFilterOptionsAction $optionsAction,
         QueryFilterSetFactory $filterFactory,
         ?TranslationEntryFilterSchema $filterSchema = null,
     ): JsonResponse {
         $this->authorization->authorize(TranslationsAbility::ListEntries);
+        $indexInput = $request->query();
+
+        if (! array_key_exists('per_page', $indexInput) && array_key_exists('perPage', $indexInput)) {
+            $indexInput['per_page'] = $indexInput['perPage'];
+        }
+
+        $query = TranslationIndexQueryData::validateAndCreate($indexInput);
+        $filterQuery = [];
+
+        foreach ($request->query() as $key => $value) {
+            if (is_string($key)) {
+                $filterQuery[$key] = $value;
+            }
+        }
 
         $entries = $action->execute(
-            perPage: $request->perPage(),
+            perPage: $query->pageSize(),
             filters: $filterFactory->fromHttpQuery(
-                $request->filterQuery(),
+                $filterQuery,
                 ($filterSchema ?? new TranslationEntryFilterSchema)->make(),
             ),
         );
@@ -95,21 +110,22 @@ final class TranslationsApiController extends Controller
     /**
      * Trigger translation import from files into the database.
      *
-     * @param  ImportTranslationsRequest  $request  Validated import request
+     * @param  Request  $request  Import request
      * @param  ImportTranslationsAction  $action  Import action
      * @return JsonResponse Import summary
      */
     public function import(
-        ImportTranslationsRequest $request,
+        Request $request,
         ImportTranslationsAction $action,
     ): JsonResponse {
         $this->authorization->authorize(TranslationsAbility::Synchronize);
+        $data = ImportTranslationsData::validateAndCreate($request->all());
 
         return response()->json([
             'data' => $action->execute(
-                $request->scopeTokens(),
-                $request->translationFormat(),
-                $request->dryRun(),
+                $data->scopeTokens(),
+                $data->translationFormat(),
+                $data->isDryRun(),
             ),
             'code' => TranslationsResponseCode::Imported->value,
         ], 200);
@@ -118,28 +134,29 @@ final class TranslationsApiController extends Controller
     /**
      * Trigger translation export from the database back to files.
      *
-     * @param  ExportTranslationsRequest  $request  Validated export request
+     * @param  Request  $request  Export request
      * @param  ExportTranslationsAction  $action  Export action
      * @return JsonResponse Export summary
      */
     public function export(
-        ExportTranslationsRequest $request,
+        Request $request,
         ExportTranslationsAction $action,
     ): JsonResponse {
         $this->authorization->authorize(TranslationsAbility::Export);
+        $data = ExportTranslationsData::validateAndCreate($request->all());
 
-        if ($request->prune()) {
+        if ($data->shouldPrune()) {
             $this->authorization->authorize(TranslationsAbility::Prune);
         }
 
         return response()->json([
             'data' => $action->execute(
-                $request->scopeTokens(),
-                $request->locales(),
-                $request->translationFormat(),
-                $request->target(),
-                $request->prune(),
-                $request->dryRun(),
+                $data->scopeTokens(),
+                $data->localeNames(),
+                $data->translationFormat(),
+                $data->targetName(),
+                $data->shouldPrune(),
+                $data->isDryRun(),
             ),
             'code' => TranslationsResponseCode::Exported->value,
         ], 200);
