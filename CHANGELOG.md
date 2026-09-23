@@ -4,6 +4,14 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-09-23
+
+### Changed
+
+- Replace catalog, import, and export Form Requests with Data contracts while
+  preserving list normalization, export confirmation, prune authorization,
+  supported pagination aliases, and existing response envelopes.
+
 ## [2.1.0] - 2026-09-23
 
 ### Fixed
