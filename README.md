@@ -2,6 +2,9 @@
 
 [← NVL Laravel Suite](https://github.com/nvl-laravel-suite)
 
+For support, [open an issue](https://github.com/nvl-laravel-suite/translations/issues). For vulnerabilities, use
+[private reporting](https://github.com/nvl-laravel-suite/translations/security/advisories/new). See [Contributing](CONTRIBUTING.md).
+
 ## Quick reference
 
 | Item | Value |
@@ -392,20 +395,14 @@ or mutates Laravel's global translator.
 
 DTOs and enums register with Core's Data provider; configured type generation includes them automatically. Publishing `translations-skills` installs package-specific agent guidance.
 
+From a standalone checkout of the public Translations repository:
+
 ```bash
 composer install
 composer quality
 ```
 
-`composer quality` checks Pint formatting, Larastan, and the isolated Testbench/Pest suite. From this monorepo root, use the package configuration explicitly:
-
-```bash
-vendor/bin/pest \
-    --test-directory=packages/nvl/translations/tests \
-    --configuration=packages/nvl/translations/phpunit.xml.dist \
-    --bootstrap=vendor/autoload.php \
-    packages/nvl/translations/tests
-```
+`composer quality` checks Pint formatting, Larastan, and the isolated Testbench/Pest suite.
 
 ## License
 
