@@ -4,6 +4,10 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- Prepare `nvl/translations` for independent Composer and Git publication; require `nvl/core` for shared Support and Data services.
+
 ## [2.1.1] - 2026-09-23
 
 ### Changed

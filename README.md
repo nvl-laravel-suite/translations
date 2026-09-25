@@ -1,12 +1,12 @@
 # NVL Translations — API and usage
 
-[← NVL Laravel Suite](../../../README.md)
+[← NVL Laravel Suite](https://github.com/nvl-laravel-suite)
 
 ## Quick reference
 
 | Item | Value |
 |---|---|
-| Installed through | `composer require nvl/laravel-suite:^2.0` |
+| Installed through | `composer require nvl/translations:^2.0` |
 | Module identifier | `nvl/translations` |
 | PHP namespace | `Nvl\Translations` |
 | Service provider | `Nvl\Translations\Providers\TranslationsServiceProvider` |
@@ -31,10 +31,10 @@ The database is an editing and synchronization workspace. It is not installed as
 
 - PHP 8.4+
 - Laravel 13
-- `nvl/data`, `nvl/filterable`, and `nvl/support`
+- `nvl/core`, `nvl/filterable`, and `nvl/tenancy`
 
 ```bash
-composer require nvl/laravel-suite:^2.0
+composer require nvl/translations:^2.0
 php artisan migrate
 php artisan vendor:publish --tag=translations-config
 php artisan vendor:publish --tag=translations-skills
@@ -390,7 +390,7 @@ the separate allowlisted override repository and exports private artifacts to
 `tenants/<tenant>/translations/<artifact>.json`; it never rewrites source files
 or mutates Laravel's global translator.
 
-DTOs and enums register with `nvl/data`; configured type generation includes them automatically. Publishing `translations-skills` installs package-specific agent guidance.
+DTOs and enums register with Core's Data provider; configured type generation includes them automatically. Publishing `translations-skills` installs package-specific agent guidance.
 
 ```bash
 composer install
