@@ -410,6 +410,3 @@ vendor/bin/pest \
 ## License
 
 Released under the [MIT License](LICENSE).
-
-<!-- tenancy-program-p2 -->
-Configurable-tenancy implementation and adoption documentation are present. The final consolidated verification matrix is pending; do not treat this package as release-ready until that gate passes.
