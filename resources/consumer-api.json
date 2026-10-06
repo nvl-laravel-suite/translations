@@ -1,0 +1,286 @@
+{
+    "schema_version": 1,
+    "package": "nvl/translations",
+    "psr4": {
+        "Nvl\\Translations\\": "src"
+    },
+    "symbols": {
+        "Nvl\\Translations\\Actions\\Entries\\GetTranslationCatalogStatisticsAction": {
+            "kind": "class",
+            "file": "src/Actions/Entries/GetTranslationCatalogStatisticsAction.php",
+            "methods": [
+                "__construct",
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Actions\\Entries\\ListTranslationEntriesAction": {
+            "kind": "class",
+            "file": "src/Actions/Entries/ListTranslationEntriesAction.php",
+            "methods": [
+                "__construct",
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Actions\\Entries\\ListTranslationFilterOptionsAction": {
+            "kind": "class",
+            "file": "src/Actions/Entries/ListTranslationFilterOptionsAction.php",
+            "methods": [
+                "__construct",
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Actions\\Entries\\UpdateTranslationEntryAction": {
+            "kind": "class",
+            "file": "src/Actions/Entries/UpdateTranslationEntryAction.php",
+            "methods": [
+                "__construct",
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Actions\\ExportTenantTranslationsAction": {
+            "kind": "class",
+            "file": "src/Actions/ExportTenantTranslationsAction.php",
+            "methods": [
+                "__construct",
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Actions\\Sync\\ExportTranslationsAction": {
+            "kind": "class",
+            "file": "src/Actions/Sync/ExportTranslationsAction.php",
+            "methods": [
+                "__construct",
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Actions\\Sync\\ImportTranslationsAction": {
+            "kind": "class",
+            "file": "src/Actions/Sync/ImportTranslationsAction.php",
+            "methods": [
+                "__construct",
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Actions\\Sync\\ListUnusedTranslationsAction": {
+            "kind": "class",
+            "file": "src/Actions/Sync/ListUnusedTranslationsAction.php",
+            "methods": [
+                "__construct",
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Actions\\Sync\\ScanTranslationsAction": {
+            "kind": "class",
+            "file": "src/Actions/Sync/ScanTranslationsAction.php",
+            "methods": [
+                "__construct",
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Contracts\\ImportTranslationsContract": {
+            "kind": "interface",
+            "file": "src/Contracts/ImportTranslationsContract.php",
+            "methods": [
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Contracts\\ScanTranslationsContract": {
+            "kind": "interface",
+            "file": "src/Contracts/ScanTranslationsContract.php",
+            "methods": [
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Contracts\\TenantTranslationRepository": {
+            "kind": "interface",
+            "file": "src/Contracts/TenantTranslationRepository.php",
+            "methods": [
+                "forget",
+                "get",
+                "set"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Contracts\\TranslationsAuthorization": {
+            "kind": "interface",
+            "file": "src/Contracts/TranslationsAuthorization.php",
+            "methods": [
+                "authorize"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Contracts\\UpdateTranslationEntryContract": {
+            "kind": "interface",
+            "file": "src/Contracts/UpdateTranslationEntryContract.php",
+            "methods": [
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Data\\TenantTranslationExportData": {
+            "kind": "class",
+            "file": "src/Data/TenantTranslationExportData.php",
+            "methods": [
+                "__construct"
+            ],
+            "properties": [
+                "bytes",
+                "disk",
+                "path",
+                "sha256"
+            ],
+            "constants": []
+        },
+        "Nvl\\Translations\\Data\\TranslationCatalogStatisticsData": {
+            "kind": "class",
+            "file": "src/Data/TranslationCatalogStatisticsData.php",
+            "methods": [
+                "__construct",
+                "scopedRules",
+                "toArray",
+                "toModel",
+                "toModelFiltered",
+                "toModelPatch",
+                "transform",
+                "translatedAttributes",
+                "translatedMessages"
+            ],
+            "properties": [
+                "changed",
+                "conflicts",
+                "locales",
+                "missing",
+                "scopes",
+                "total"
+            ],
+            "constants": []
+        },
+        "Nvl\\Translations\\Data\\UpdateTranslationEntryPayload": {
+            "kind": "class",
+            "file": "src/Data/UpdateTranslationEntryPayload.php",
+            "methods": [
+                "__construct",
+                "attributes",
+                "messages",
+                "rules",
+                "scopedRules",
+                "toArray",
+                "toModel",
+                "toModelFiltered",
+                "toModelPatch",
+                "translatedAttributes",
+                "translatedMessages"
+            ],
+            "properties": [
+                "expectedRevision",
+                "value"
+            ],
+            "constants": []
+        },
+        "Nvl\\Translations\\Enums\\TranslationsAbility": {
+            "kind": "enum",
+            "file": "src/Enums/TranslationsAbility.php",
+            "methods": [
+                "cases",
+                "from",
+                "tryFrom"
+            ],
+            "properties": [
+                "name",
+                "value"
+            ],
+            "constants": [
+                "Export",
+                "ListEntries",
+                "Prune",
+                "Scan",
+                "Synchronize",
+                "UpdateEntry"
+            ]
+        },
+        "Nvl\\Translations\\Exceptions\\TranslationsException": {
+            "kind": "class",
+            "file": "src/Exceptions/TranslationsException.php",
+            "methods": [],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Models\\TranslationEntry": {
+            "kind": "class",
+            "file": "src/Models/TranslationEntry.php",
+            "methods": [
+                "getKey",
+                "getKeyName",
+                "getMorphClass",
+                "getRouteKey",
+                "getRouteKeyName",
+                "is",
+                "isNot",
+                "relationLoaded"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Services\\TranslationEntryFilterSchema": {
+            "kind": "class",
+            "file": "src/Services/TranslationEntryFilterSchema.php",
+            "methods": [
+                "filterChangedSinceImport",
+                "filterIsMissing",
+                "filterMissingValue",
+                "filterSearch",
+                "make"
+            ],
+            "properties": [],
+            "constants": []
+        }
+    },
+    "models": {
+        "Nvl\\Translations\\Models\\TranslationEntry": {
+            "read": [],
+            "identity_methods": [
+                "getKey",
+                "getKeyName",
+                "getMorphClass",
+                "getRouteKey",
+                "getRouteKeyName",
+                "is",
+                "isNot",
+                "relationLoaded"
+            ],
+            "capability_relations": []
+        }
+    },
+    "capability_relations": {},
+    "tables": {
+        "entries": "nvl_translations_entries",
+        "scan_runs": "nvl_translations_scan_runs",
+        "tenant_overrides": "nvl_translations_tenant_overrides",
+        "usages": "nvl_translations_usages"
+    }
+}
