@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Nvl\Translations\Actions\Sync;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
+use Nvl\Support\Config\PackageStorage;
+use Nvl\Support\Events\DomainEventDispatcher;
 use Nvl\Translations\Contracts\ScanTranslationsContract;
 use Nvl\Translations\Events\TranslationsScanned;
 use Nvl\Translations\Services\SourceTranslationWorkspace;
@@ -25,6 +28,7 @@ final class ScanTranslationsAction implements ScanTranslationsContract
         private readonly TranslationScanService $scanService,
         private readonly TranslationProcessLock $lock,
         private readonly SourceTranslationWorkspace $workspace,
+        private DomainEventDispatcher $domainEvents,
     ) {}
 
     /**
@@ -37,7 +41,7 @@ final class ScanTranslationsAction implements ScanTranslationsContract
             'scan',
             fn (): array => $this->scanService->execute(),
         );
-        event(new TranslationsScanned($result));
+        $this->domainEvents->dispatch(new TranslationsScanned($result), DB::connection(PackageStorage::connection('translations')));
 
         return $result;
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nvl\Translations\Actions\Entries;
 
 use LogicException;
+use Nvl\Translations\Contracts\ListTranslationFilterOptionsContract;
 use Nvl\Translations\Models\TranslationEntry;
 use Nvl\Translations\Services\SourceTranslationWorkspace;
 
@@ -13,7 +14,7 @@ use Nvl\Translations\Services\SourceTranslationWorkspace;
  *
  * @api
  */
-final class ListTranslationFilterOptionsAction
+final class ListTranslationFilterOptionsAction implements ListTranslationFilterOptionsContract
 {
     public function __construct(private readonly SourceTranslationWorkspace $workspace) {}
 

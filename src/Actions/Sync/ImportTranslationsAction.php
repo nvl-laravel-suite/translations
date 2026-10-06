@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Actions\Sync;
 
+use Illuminate\Support\Facades\DB;
+use Nvl\Support\Config\PackageStorage;
+use Nvl\Support\Events\DomainEventDispatcher;
 use Nvl\Translations\Contracts\ImportTranslationsContract;
 use Nvl\Translations\Events\TranslationsImported;
 use Nvl\Translations\Services\SourceTranslationWorkspace;
@@ -24,6 +27,7 @@ final class ImportTranslationsAction implements ImportTranslationsContract
         private readonly TranslationImportService $importService,
         private readonly TranslationProcessLock $lock,
         private readonly SourceTranslationWorkspace $workspace,
+        private DomainEventDispatcher $domainEvents,
     ) {}
 
     /**
@@ -42,7 +46,7 @@ final class ImportTranslationsAction implements ImportTranslationsContract
         );
 
         if (! $dryRun) {
-            event(new TranslationsImported($result));
+            $this->domainEvents->dispatch(new TranslationsImported($result), DB::connection(PackageStorage::connection('translations')));
         }
 
         return $result;

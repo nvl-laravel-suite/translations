@@ -6,8 +6,10 @@ namespace Nvl\Translations\Models;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Nvl\Support\Config\PackageStorage;
+use Nvl\Translations\Database\Factories\TranslationEntryFactory;
 use Nvl\Translations\Definitions\Tables\TranslationsTables;
 use Nvl\Translations\Enums\TranslationSyncStatus;
 use Nvl\Translations\Support\TranslationIdentity;
@@ -39,6 +41,9 @@ use Nvl\Translations\Traits\TranslationEntryFilters;
  */
 final class TranslationEntry extends Model
 {
+    /** @use HasFactory<TranslationEntryFactory> */
+    use HasFactory;
+
     use HasUuids;
     use TranslationEntryFilters;
 
@@ -139,5 +144,15 @@ final class TranslationEntry extends Model
     public function getConnectionName(): ?string
     {
         return PackageStorage::connectionName($this->connection ?? PackageStorage::connection('translations') ?? parent::getConnectionName());
+    }
+
+    /**
+     * Return the package's runtime fixture factory.
+     *
+     * @internal
+     */
+    protected static function newFactory(): TranslationEntryFactory
+    {
+        return TranslationEntryFactory::new();
     }
 }

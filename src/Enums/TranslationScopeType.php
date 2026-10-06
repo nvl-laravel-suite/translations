@@ -6,6 +6,8 @@ namespace Nvl\Translations\Enums;
 
 /**
  * Translation storage scope source.
+ *
+ * @api
  */
 enum TranslationScopeType: string
 {

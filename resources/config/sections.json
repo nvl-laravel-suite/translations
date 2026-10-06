@@ -1,0 +1,39 @@
+{
+    "schema_version": 1,
+    "configs": {
+        "nvl-translations": {
+            "required": [],
+            "common": [
+                "authorization.ability",
+                "backup.enabled",
+                "discovery.modules",
+                "discovery.vendor",
+                "lock.store",
+                "migrations.enabled",
+                "routes.enabled",
+                "routes.management_middleware",
+                "routes.middleware",
+                "routes.prefix"
+            ],
+            "advanced": [
+                "backup.directory",
+                "custom_scopes",
+                "export_targets.source",
+                "import.conflict_strategy",
+                "import.fail_on_error",
+                "lock.seconds",
+                "lock.wait_seconds",
+                "module_roots",
+                "paths.app",
+                "paths.vendor",
+                "scan.extensions",
+                "scan.namespaces",
+                "scan.paths",
+                "scan.patterns",
+                "scan.retention_days",
+                "scan_allowlist",
+                "tenant_overrides.keys"
+            ]
+        }
+    }
+}

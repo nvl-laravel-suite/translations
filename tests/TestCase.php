@@ -7,6 +7,7 @@ namespace Nvl\Translations\Tests;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Nvl\Data\Providers\DataServiceProvider;
 use Nvl\Filterable\Providers\FilterableServiceProvider;
+use Nvl\Support\Providers\LocaleServiceProvider;
 use Nvl\Support\Providers\SupportServiceProvider;
 use Nvl\Translations\Providers\TranslationsServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
@@ -24,6 +25,7 @@ abstract class TestCase extends Orchestra
     protected function getPackageProviders($app): array
     {
         return [
+            LocaleServiceProvider::class,
             DataServiceProvider::class,
             FilterableServiceProvider::class,
             SupportServiceProvider::class,

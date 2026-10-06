@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Nvl\Translations\Actions\Sync;
 
 use Illuminate\Support\Facades\DB;
+use Nvl\Support\Config\PackageStorage;
+use Nvl\Support\Events\DomainEventDispatcher;
+use Nvl\Translations\Contracts\ExportTranslationsContract;
 use Nvl\Translations\Events\TranslationsExported;
 use Nvl\Translations\Exceptions\TranslationsException;
 use Nvl\Translations\Services\SourceTranslationWorkspace;
@@ -17,7 +20,7 @@ use Nvl\Translations\Services\TranslationProcessLock;
  *
  * @api
  */
-final class ExportTranslationsAction
+final class ExportTranslationsAction implements ExportTranslationsContract
 {
     /**
      * @param  TranslationExportService  $exportService  Export service
@@ -27,6 +30,7 @@ final class ExportTranslationsAction
         private readonly TranslationImportService $importService,
         private readonly TranslationProcessLock $lock,
         private readonly SourceTranslationWorkspace $workspace,
+        private DomainEventDispatcher $domainEvents,
     ) {}
 
     /**
@@ -78,7 +82,7 @@ final class ExportTranslationsAction
         );
 
         if (! $dryRun) {
-            event(new TranslationsExported($result));
+            $this->domainEvents->dispatch(new TranslationsExported($result), DB::connection(PackageStorage::connection('translations')));
         }
 
         return $result;

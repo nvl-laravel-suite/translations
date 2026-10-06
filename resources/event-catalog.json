@@ -1,0 +1,478 @@
+{
+  "schema_version": 1,
+  "package": "nvl/translations",
+  "documentation": "docs/events.md",
+  "implementation_status": "implemented; executable acceptance proof pending",
+  "events": [
+    {
+      "class": "Nvl\\Translations\\Events\\TranslationEntryUpdated",
+      "source": "packages/nvl/translations/src/Events/TranslationEntryUpdated.php",
+      "constructor_fields": [
+        {
+          "name": "entry",
+          "type": "Nvl\\Translations\\Data\\TranslationEntryPayload",
+          "visibility": "public",
+          "required": true
+        },
+        {
+          "name": "schemaVersion",
+          "type": "int",
+          "visibility": "public",
+          "required": false,
+          "default_expression": "1"
+        }
+      ],
+      "public_fields": [
+        {
+          "name": "entry",
+          "type": "Nvl\\Translations\\Data\\TranslationEntryPayload"
+        },
+        {
+          "name": "schemaVersion",
+          "type": "int"
+        }
+      ],
+      "kind": "value_object",
+      "schema_version": 1,
+      "trigger": "Manual workspace entry persisted.",
+      "aliases": [],
+      "producers": [
+        {
+          "path": "packages/nvl/translations/src/Actions/Entries/UpdateTranslationEntryAction.php",
+          "trigger": "Manual workspace entry persisted.",
+          "connection": "$model->getConnection()",
+          "construction_expression": "new TranslationEntryUpdated(TranslationEntryPayload::fromModel($model))"
+        }
+      ],
+      "security_notes": [
+        "TranslationEntryUpdated carries TranslationEntryPayload including text value and conflictMetadata; trust this workspace integration and protect its data. Import/export/scan summaries include counts, warnings, target string and immutable scan timestamp, never whole source files/models. PHPDoc shapes document arrays; they are not constructor-time recursive validators."
+      ],
+      "no_op_semantics": "Committed manual edits and completed file/import/export/scan operations are separate facts. Filesystem writes are not rolled back by SQL transaction rollback; event timing is scoped to the supplied translation storage connection."
+    },
+    {
+      "class": "Nvl\\Translations\\Events\\TranslationsExported",
+      "source": "packages/nvl/translations/src/Events/TranslationsExported.php",
+      "constructor_fields": [
+        {
+          "name": "result",
+          "type": "array",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "array{scopes:int,locales:int,files:int,deleted:int,target:string}"
+        },
+        {
+          "name": "schemaVersion",
+          "type": "int",
+          "visibility": "public",
+          "required": false,
+          "default_expression": "1"
+        }
+      ],
+      "public_fields": [
+        {
+          "name": "result",
+          "type": "array",
+          "phpdoc_type": "array{scopes:int,locales:int,files:int,deleted:int,target:string}"
+        },
+        {
+          "name": "schemaVersion",
+          "type": "int"
+        }
+      ],
+      "kind": "value_object",
+      "schema_version": 1,
+      "trigger": "Database-to-file synchronization completed.",
+      "aliases": [],
+      "producers": [
+        {
+          "path": "packages/nvl/translations/src/Actions/Sync/ExportTranslationsAction.php",
+          "trigger": "Database-to-file synchronization completed.",
+          "connection": "DB::connection(PackageStorage::connection('translations'))",
+          "construction_expression": "new TranslationsExported($result)"
+        }
+      ],
+      "security_notes": [
+        "TranslationEntryUpdated carries TranslationEntryPayload including text value and conflictMetadata; trust this workspace integration and protect its data. Import/export/scan summaries include counts, warnings, target string and immutable scan timestamp, never whole source files/models. PHPDoc shapes document arrays; they are not constructor-time recursive validators."
+      ],
+      "no_op_semantics": "Committed manual edits and completed file/import/export/scan operations are separate facts. Filesystem writes are not rolled back by SQL transaction rollback; event timing is scoped to the supplied translation storage connection."
+    },
+    {
+      "class": "Nvl\\Translations\\Events\\TranslationsImported",
+      "source": "packages/nvl/translations/src/Events/TranslationsImported.php",
+      "constructor_fields": [
+        {
+          "name": "result",
+          "type": "array",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "array{scopes:int,files:int,entries:int,created:int,updated:int,preserved:int,conflicts:int,missing:int,warnings:list<string>}"
+        },
+        {
+          "name": "schemaVersion",
+          "type": "int",
+          "visibility": "public",
+          "required": false,
+          "default_expression": "1"
+        }
+      ],
+      "public_fields": [
+        {
+          "name": "result",
+          "type": "array",
+          "phpdoc_type": "array{scopes:int,files:int,entries:int,created:int,updated:int,preserved:int,conflicts:int,missing:int,warnings:list<string>}"
+        },
+        {
+          "name": "schemaVersion",
+          "type": "int"
+        }
+      ],
+      "kind": "value_object",
+      "schema_version": 1,
+      "trigger": "Authoritative-file import completed.",
+      "aliases": [],
+      "producers": [
+        {
+          "path": "packages/nvl/translations/src/Actions/Sync/ImportTranslationsAction.php",
+          "trigger": "Authoritative-file import completed.",
+          "connection": "DB::connection(PackageStorage::connection('translations'))",
+          "construction_expression": "new TranslationsImported($result)"
+        }
+      ],
+      "security_notes": [
+        "TranslationEntryUpdated carries TranslationEntryPayload including text value and conflictMetadata; trust this workspace integration and protect its data. Import/export/scan summaries include counts, warnings, target string and immutable scan timestamp, never whole source files/models. PHPDoc shapes document arrays; they are not constructor-time recursive validators."
+      ],
+      "no_op_semantics": "Committed manual edits and completed file/import/export/scan operations are separate facts. Filesystem writes are not rolled back by SQL transaction rollback; event timing is scoped to the supplied translation storage connection."
+    },
+    {
+      "class": "Nvl\\Translations\\Events\\TranslationsScanned",
+      "source": "packages/nvl/translations/src/Events/TranslationsScanned.php",
+      "constructor_fields": [
+        {
+          "name": "result",
+          "type": "array",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "array{files:int,hits:int,scanned_at:Carbon\\CarbonImmutable}"
+        },
+        {
+          "name": "schemaVersion",
+          "type": "int",
+          "visibility": "public",
+          "required": false,
+          "default_expression": "1"
+        }
+      ],
+      "public_fields": [
+        {
+          "name": "result",
+          "type": "array",
+          "phpdoc_type": "array{files:int,hits:int,scanned_at:Carbon\\CarbonImmutable}"
+        },
+        {
+          "name": "schemaVersion",
+          "type": "int"
+        }
+      ],
+      "kind": "value_object",
+      "schema_version": 1,
+      "trigger": "Source usage scan completed.",
+      "aliases": [],
+      "producers": [
+        {
+          "path": "packages/nvl/translations/src/Actions/Sync/ScanTranslationsAction.php",
+          "trigger": "Source usage scan completed.",
+          "connection": "DB::connection(PackageStorage::connection('translations'))",
+          "construction_expression": "new TranslationsScanned($result)"
+        }
+      ],
+      "security_notes": [
+        "TranslationEntryUpdated carries TranslationEntryPayload including text value and conflictMetadata; trust this workspace integration and protect its data. Import/export/scan summaries include counts, warnings, target string and immutable scan timestamp, never whole source files/models. PHPDoc shapes document arrays; they are not constructor-time recursive validators."
+      ],
+      "no_op_semantics": "Committed manual edits and completed file/import/export/scan operations are separate facts. Filesystem writes are not rolled back by SQL transaction rollback; event timing is scoped to the supplied translation storage connection."
+    }
+  ],
+  "value_types": [
+    {
+      "class": "Nvl\\Translations\\Data\\TranslationEntryPayload",
+      "source": "packages/nvl/translations/src/Data/TranslationEntryPayload.php",
+      "constructor_fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "string"
+        },
+        {
+          "name": "scopeType",
+          "type": "Nvl\\Translations\\Enums\\TranslationScopeType",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "Nvl\\Translations\\Enums\\TranslationScopeType"
+        },
+        {
+          "name": "scopeName",
+          "type": "string",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "string"
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "string"
+        },
+        {
+          "name": "format",
+          "type": "Nvl\\Translations\\Enums\\TranslationFormat",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "Nvl\\Translations\\Enums\\TranslationFormat"
+        },
+        {
+          "name": "group",
+          "type": "?string",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "string|null"
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "string"
+        },
+        {
+          "name": "value",
+          "type": "?string",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "string|null"
+        },
+        {
+          "name": "isMissing",
+          "type": "bool",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "bool"
+        },
+        {
+          "name": "revision",
+          "type": "int",
+          "visibility": "public",
+          "required": true
+        },
+        {
+          "name": "syncStatus",
+          "type": "Nvl\\Translations\\Enums\\TranslationSyncStatus",
+          "visibility": "public",
+          "required": true
+        },
+        {
+          "name": "conflictMetadata",
+          "type": "?array",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "array<string, mixed>|null"
+        },
+        {
+          "name": "lastImportedAt",
+          "type": "?Carbon\\CarbonImmutable",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "Carbon\\CarbonImmutable|null"
+        },
+        {
+          "name": "lastExportedAt",
+          "type": "?Carbon\\CarbonImmutable",
+          "visibility": "public",
+          "required": true
+        },
+        {
+          "name": "createdAt",
+          "type": "Carbon\\CarbonImmutable",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "Carbon\\CarbonImmutable"
+        },
+        {
+          "name": "updatedAt",
+          "type": "Carbon\\CarbonImmutable",
+          "visibility": "public",
+          "required": true,
+          "phpdoc_type": "Carbon\\CarbonImmutable"
+        }
+      ],
+      "public_fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "phpdoc_type": "string"
+        },
+        {
+          "name": "scopeType",
+          "type": "Nvl\\Translations\\Enums\\TranslationScopeType",
+          "phpdoc_type": "Nvl\\Translations\\Enums\\TranslationScopeType"
+        },
+        {
+          "name": "scopeName",
+          "type": "string",
+          "phpdoc_type": "string"
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "phpdoc_type": "string"
+        },
+        {
+          "name": "format",
+          "type": "Nvl\\Translations\\Enums\\TranslationFormat",
+          "phpdoc_type": "Nvl\\Translations\\Enums\\TranslationFormat"
+        },
+        {
+          "name": "group",
+          "type": "?string",
+          "phpdoc_type": "string|null"
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "phpdoc_type": "string"
+        },
+        {
+          "name": "value",
+          "type": "?string",
+          "phpdoc_type": "string|null"
+        },
+        {
+          "name": "isMissing",
+          "type": "bool",
+          "phpdoc_type": "bool"
+        },
+        {
+          "name": "revision",
+          "type": "int"
+        },
+        {
+          "name": "syncStatus",
+          "type": "Nvl\\Translations\\Enums\\TranslationSyncStatus"
+        },
+        {
+          "name": "conflictMetadata",
+          "type": "?array",
+          "phpdoc_type": "array<string, mixed>|null"
+        },
+        {
+          "name": "lastImportedAt",
+          "type": "?Carbon\\CarbonImmutable",
+          "phpdoc_type": "Carbon\\CarbonImmutable|null"
+        },
+        {
+          "name": "lastExportedAt",
+          "type": "?Carbon\\CarbonImmutable"
+        },
+        {
+          "name": "createdAt",
+          "type": "Carbon\\CarbonImmutable",
+          "phpdoc_type": "Carbon\\CarbonImmutable"
+        },
+        {
+          "name": "updatedAt",
+          "type": "Carbon\\CarbonImmutable",
+          "phpdoc_type": "Carbon\\CarbonImmutable"
+        }
+      ],
+      "kind": "value_object"
+    },
+    {
+      "class": "Nvl\\Translations\\Enums\\TranslationFormat",
+      "source": "packages/nvl/translations/src/Enums/TranslationFormat.php",
+      "constructor_fields": [],
+      "public_fields": [],
+      "kind": "enum",
+      "backing_type": "string",
+      "cases": [
+        {
+          "name": "Php",
+          "value": "php"
+        },
+        {
+          "name": "Json",
+          "value": "json"
+        }
+      ]
+    },
+    {
+      "class": "Nvl\\Translations\\Enums\\TranslationScopeType",
+      "source": "packages/nvl/translations/src/Enums/TranslationScopeType.php",
+      "constructor_fields": [],
+      "public_fields": [],
+      "kind": "enum",
+      "backing_type": "string",
+      "cases": [
+        {
+          "name": "App",
+          "value": "app"
+        },
+        {
+          "name": "Module",
+          "value": "module"
+        },
+        {
+          "name": "Vendor",
+          "value": "vendor"
+        },
+        {
+          "name": "Custom",
+          "value": "custom"
+        }
+      ]
+    },
+    {
+      "class": "Nvl\\Translations\\Enums\\TranslationSyncStatus",
+      "source": "packages/nvl/translations/src/Enums/TranslationSyncStatus.php",
+      "constructor_fields": [],
+      "public_fields": [],
+      "kind": "enum",
+      "backing_type": "string",
+      "cases": [
+        {
+          "name": "Synchronized",
+          "value": "synchronized"
+        },
+        {
+          "name": "Edited",
+          "value": "edited"
+        },
+        {
+          "name": "Conflict",
+          "value": "conflict"
+        },
+        {
+          "name": "Missing",
+          "value": "missing"
+        }
+      ]
+    }
+  ],
+  "aliases": [],
+  "publication": {
+    "publication": "The native host dispatcher receives the captured event after the supplied source connection outer commit, or immediately when that connection has no active transaction.",
+    "rollback": "Callbacks attach to the matching native connection and current nesting record; native outer/savepoint rollback discards the corresponding callbacks.",
+    "registration_failure": "Missing source transaction records fail before commit; Mail Notifications reports and drops unusable observations.",
+    "host_policy": "Host after-commit listeners and queue after_commit policies can add their own deferral after publication. Host transaction infrastructure and dispatcher bindings are preserved.",
+    "delivery_limit": "Local callbacks are not an outbox. Process exit between commit and callback can lose delivery; no crash durability or exactly-once delivery is promised.",
+    "cardinality": "One canonical object is dispatched per qualifying producer call. This is local publication, not cross-process deduplication or a guarantee that repeated observations are unique.",
+    "manual_producers": "Use Nvl\\Support\\Events\\DomainEventDispatcher::dispatch($event, $writerConnection). Native Event::dispatch() is immediate and has no package interception."
+  },
+  "security_notes": [
+    "TranslationEntryUpdated carries TranslationEntryPayload including text value and conflictMetadata; trust this workspace integration and protect its data. Import/export/scan summaries include counts, warnings, target string and immutable scan timestamp, never whole source files/models. PHPDoc shapes document arrays; they are not constructor-time recursive validators."
+  ],
+  "no_op_semantics": "Committed manual edits and completed file/import/export/scan operations are separate facts. Filesystem writes are not rolled back by SQL transaction rollback; event timing is scoped to the supplied translation storage connection.",
+  "notes": [
+    "Native array result shapes include CarbonImmutable in TranslationsScanned.result.scanned_at. TranslationEntryPayload exposes enum scope/format/syncStatus, nullable text/conflict data and immutable import/export/create/update timestamps."
+  ]
+}

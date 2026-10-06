@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Nvl\Support\Tenancy\Contracts\TenantBoundary;
 use Nvl\Support\Tenancy\Contracts\TenantContext;
+use Nvl\Translations\Contracts\ExportTenantTranslationsContract;
 use Nvl\Translations\Data\TenantTranslationExportData;
 use Nvl\Translations\Models\TenantTranslationOverride;
 use RuntimeException;
@@ -17,7 +18,7 @@ use RuntimeException;
  *
  * @api
  */
-final readonly class ExportTenantTranslationsAction
+final readonly class ExportTenantTranslationsAction implements ExportTenantTranslationsContract
 {
     public function __construct(private TenantContext $context, private TenantBoundary $boundary) {}
 

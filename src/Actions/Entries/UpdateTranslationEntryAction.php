@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Actions\Entries;
 
-use Illuminate\Support\Facades\DB;
+use Nvl\Support\Events\DomainEventDispatcher;
 use Nvl\Translations\Contracts\UpdateTranslationEntryContract;
 use Nvl\Translations\Data\TranslationEntryPayload;
 use Nvl\Translations\Data\UpdateTranslationEntryPayload;
@@ -26,6 +26,7 @@ final class UpdateTranslationEntryAction implements UpdateTranslationEntryContra
     public function __construct(
         private readonly TranslationProcessLock $lock,
         private readonly SourceTranslationWorkspace $workspace,
+        private DomainEventDispatcher $domainEvents,
     ) {}
 
     /**
@@ -43,7 +44,7 @@ final class UpdateTranslationEntryAction implements UpdateTranslationEntryContra
         $entryId = $entry instanceof TranslationEntry ? $entry->id : $entry;
         $updated = $this->lock->execute(
             'update',
-            fn (): TranslationEntry => DB::transaction(function () use ($entryId, $data): TranslationEntry {
+            fn (): TranslationEntry => (new TranslationEntry)->getConnection()->transaction(function () use ($entryId, $data): TranslationEntry {
                 $model = TranslationEntry::query()
                     ->lockForUpdate()
                     ->findOrFail($entryId);
@@ -66,11 +67,11 @@ final class UpdateTranslationEntryAction implements UpdateTranslationEntryContra
 
                 $model->refresh();
 
+                $this->domainEvents->dispatch(new TranslationEntryUpdated(TranslationEntryPayload::fromModel($model)), $model->getConnection());
+
                 return $model;
             }),
         );
-
-        event(new TranslationEntryUpdated(TranslationEntryPayload::fromModel($updated)));
 
         return $updated;
     }

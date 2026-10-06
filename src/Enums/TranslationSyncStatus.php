@@ -6,6 +6,8 @@ namespace Nvl\Translations\Enums;
 
 /**
  * Describes how one editable catalog row relates to its authoritative source file.
+ *
+ * @api
  */
 enum TranslationSyncStatus: string
 {

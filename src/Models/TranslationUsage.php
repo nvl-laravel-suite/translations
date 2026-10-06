@@ -6,8 +6,10 @@ namespace Nvl\Translations\Models;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Nvl\Support\Config\PackageStorage;
+use Nvl\Translations\Database\Factories\TranslationUsageFactory;
 use Nvl\Translations\Definitions\Tables\TranslationsTables;
 use Nvl\Translations\Support\TranslationIdentity;
 
@@ -26,9 +28,16 @@ use Nvl\Translations\Support\TranslationIdentity;
  * @property CarbonImmutable $last_seen_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
+ *
+ * @api
+ *
+ * @nvl-consumer-read id
  */
 final class TranslationUsage extends Model
 {
+    /** @use HasFactory<TranslationUsageFactory> */
+    use HasFactory;
+
     use HasUuids;
 
     protected $table = TranslationsTables::Usages;
@@ -91,5 +100,15 @@ final class TranslationUsage extends Model
     public function getConnectionName(): ?string
     {
         return PackageStorage::connectionName($this->connection ?? PackageStorage::connection('translations') ?? parent::getConnectionName());
+    }
+
+    /**
+     * Return the package's runtime fixture factory.
+     *
+     * @internal
+     */
+    protected static function newFactory(): TranslationUsageFactory
+    {
+        return TranslationUsageFactory::new();
     }
 }

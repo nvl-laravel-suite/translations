@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Nvl\Translations\Http\Controllers\Api\TranslationsApiController;
+use Nvl\Translations\Http\Middleware\RenderTranslationsExceptions;
 use Nvl\Translations\Support\TranslationConfiguration;
 
 $routeMiddleware = array_values(array_filter(
@@ -16,7 +17,7 @@ $managementMiddleware = array_values(array_filter(
 ));
 $prefix = trim(TranslationConfiguration::string('nvl-translations.routes.prefix', 'nvl/api/v1'), '/');
 
-Route::middleware($routeMiddleware)->prefix($prefix)->group(function () use ($managementMiddleware): void {
+Route::middleware([RenderTranslationsExceptions::class, ...$routeMiddleware])->prefix($prefix)->group(function () use ($managementMiddleware): void {
     Route::middleware($managementMiddleware)
         ->prefix('translations')
         ->name('nvl.translations.management.')

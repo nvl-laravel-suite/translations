@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nvl\Translations\Actions\Sync;
 
 use Carbon\CarbonImmutable;
+use Nvl\Translations\Contracts\ListUnusedTranslationsContract;
 use Nvl\Translations\Services\SourceTranslationWorkspace;
 use Nvl\Translations\Services\TranslationUnusedService;
 
@@ -13,7 +14,7 @@ use Nvl\Translations\Services\TranslationUnusedService;
  *
  * @api
  */
-final class ListUnusedTranslationsAction
+final class ListUnusedTranslationsAction implements ListUnusedTranslationsContract
 {
     /**
      * @param  TranslationUnusedService  $unusedService  Unused report service

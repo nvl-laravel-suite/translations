@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Exceptions;
 
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-
 /**
+ * @api
+
  * Raised when another synchronization process owns the workspace lock.
  */
 final class TranslationWorkspaceLockedException extends TranslationsException
@@ -20,16 +19,5 @@ final class TranslationWorkspaceLockedException extends TranslationsException
         return new self(
             "The translation workspace is already running [{$operation}].",
         );
-    }
-
-    /**
-     * Render a stable workspace-lock response for API consumers.
-     */
-    public function render(Request $request): JsonResponse
-    {
-        return response()->json([
-            'message' => $this->getMessage(),
-            'code' => 'translation_workspace_locked',
-        ], 423);
     }
 }

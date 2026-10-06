@@ -6,6 +6,7 @@ namespace Nvl\Translations\Actions\Entries;
 
 use Illuminate\Database\Eloquent\Builder;
 use Nvl\Filterable\Data\FilterSet;
+use Nvl\Translations\Contracts\GetTranslationCatalogStatisticsContract;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Data\TranslationCatalogStatisticsData;
 use Nvl\Translations\Enums\TranslationsAbility;
@@ -19,7 +20,7 @@ use Nvl\Translations\Services\SourceTranslationWorkspace;
  *
  * @api
  */
-final class GetTranslationCatalogStatisticsAction
+final class GetTranslationCatalogStatisticsAction implements GetTranslationCatalogStatisticsContract
 {
     /**
      * Create the catalog statistics action.

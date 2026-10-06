@@ -6,6 +6,8 @@ namespace Nvl\Translations\Enums;
 
 /**
  * Translation file format.
+ *
+ * @api
  */
 enum TranslationFormat: string
 {

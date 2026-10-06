@@ -20,6 +20,8 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScriptType;
 
 /**
  * Data transfer object for a translation entry row.
+ *
+ * @api
  */
 #[MapOutputName(CamelCaseMapper::class)]
 #[MapInputName(CamelCaseMapper::class)]

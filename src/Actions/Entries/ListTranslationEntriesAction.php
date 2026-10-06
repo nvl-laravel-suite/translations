@@ -6,6 +6,7 @@ namespace Nvl\Translations\Actions\Entries;
 
 use Illuminate\Pagination\LengthAwarePaginator;
 use Nvl\Filterable\Data\FilterSet;
+use Nvl\Translations\Contracts\ListTranslationEntriesContract;
 use Nvl\Translations\Models\TranslationEntry;
 use Nvl\Translations\Services\SourceTranslationWorkspace;
 
@@ -14,7 +15,7 @@ use Nvl\Translations\Services\SourceTranslationWorkspace;
  *
  * @api
  */
-final class ListTranslationEntriesAction
+final class ListTranslationEntriesAction implements ListTranslationEntriesContract
 {
     public function __construct(private readonly SourceTranslationWorkspace $workspace) {}
 
