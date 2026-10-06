@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Contracts;
 
+/**
+ * Host persistence port for tenant-scoped translation overrides.
+ *
+ * @api
+ */
 interface TenantTranslationRepository
 {
     public function get(string $key, string $locale): ?string;

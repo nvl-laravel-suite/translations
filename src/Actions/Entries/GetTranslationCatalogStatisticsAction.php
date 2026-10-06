@@ -16,6 +16,8 @@ use Nvl\Translations\Services\SourceTranslationWorkspace;
 
 /**
  * Returns bounded health statistics for an authorized filtered translation catalog.
+ *
+ * @api
  */
 final class GetTranslationCatalogStatisticsAction
 {

@@ -9,6 +9,8 @@ use Nvl\Translations\Models\TranslationEntry;
 
 /**
  * Defines optimistic workspace translation entry updates.
+ *
+ * @api
  */
 interface UpdateTranslationEntryContract
 {

@@ -8,6 +8,8 @@ use Carbon\CarbonImmutable;
 
 /**
  * Defines the source-code usage scanning entrypoint.
+ *
+ * @api
  */
 interface ScanTranslationsContract
 {

@@ -8,5 +8,7 @@ use Exception;
 
 /**
  * Base exception for translation workspace failures.
+ *
+ * @api
  */
 class TranslationsException extends Exception {}

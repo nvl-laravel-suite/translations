@@ -12,7 +12,11 @@ use Nvl\Translations\Data\TenantTranslationExportData;
 use Nvl\Translations\Models\TenantTranslationOverride;
 use RuntimeException;
 
-/** Writes the current tenant's bounded overrides to a private isolated artifact. */
+/**
+ * Writes the current tenant's bounded overrides to a private isolated artifact.
+ *
+ * @api
+ */
 final readonly class ExportTenantTranslationsAction
 {
     public function __construct(private TenantContext $context, private TenantBoundary $boundary) {}

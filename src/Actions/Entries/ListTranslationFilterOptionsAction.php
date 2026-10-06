@@ -10,6 +10,8 @@ use Nvl\Translations\Services\SourceTranslationWorkspace;
 
 /**
  * Lists distinct translation filter options from one entry query.
+ *
+ * @api
  */
 final class ListTranslationFilterOptionsAction
 {

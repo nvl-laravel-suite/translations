@@ -12,6 +12,8 @@ use Nvl\Translations\Services\TranslationProcessLock;
 
 /**
  * Runs translation import synchronization.
+ *
+ * @api
  */
 final class ImportTranslationsAction implements ImportTranslationsContract
 {

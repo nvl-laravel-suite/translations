@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Data;
 
-/** Immutable identity for one private tenant translation artifact. */
+/**
+ * Immutable identity for one private tenant translation artifact.
+ *
+ * @api
+ */
 final readonly class TenantTranslationExportData
 {
     public function __construct(

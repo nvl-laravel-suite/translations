@@ -14,6 +14,8 @@ use Nvl\Translations\Services\TranslationProcessLock;
 
 /**
  * Runs translation export synchronization.
+ *
+ * @api
  */
 final class ExportTranslationsAction
 {

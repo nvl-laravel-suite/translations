@@ -34,6 +34,8 @@ use Nvl\Translations\Traits\TranslationEntryFilters;
  * @property CarbonImmutable|null $last_exported_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
+ *
+ * @api
  */
 final class TranslationEntry extends Model
 {

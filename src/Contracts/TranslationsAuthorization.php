@@ -9,6 +9,8 @@ use Nvl\Translations\Models\TranslationEntry;
 
 /**
  * Consumer-owned authorization boundary for management operations.
+ *
+ * @api
  */
 interface TranslationsAuthorization
 {

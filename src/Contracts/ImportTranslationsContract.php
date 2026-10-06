@@ -6,6 +6,8 @@ namespace Nvl\Translations\Contracts;
 
 /**
  * Defines the authoritative-file to workspace synchronization entrypoint.
+ *
+ * @api
  */
 interface ImportTranslationsContract
 {

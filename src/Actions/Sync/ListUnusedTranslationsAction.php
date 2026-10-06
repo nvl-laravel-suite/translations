@@ -10,6 +10,8 @@ use Nvl\Translations\Services\TranslationUnusedService;
 
 /**
  * Builds unused translation reports.
+ *
+ * @api
  */
 final class ListUnusedTranslationsAction
 {

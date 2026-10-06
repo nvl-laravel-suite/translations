@@ -168,14 +168,16 @@ PHP catalog loading is output-buffered: a catalog that emits output is rejected 
 
 ## Edit database rows
 
-Use the validated DTO and Action:
+Use the validated DTO and Action. Supply `$expectedRevision` from the authorized
+management projection; do not read undeclared fields from the TranslationEntry
+identity handle. Preserve the revision when submitting the edit:
 
 ```php
 $entry = app(UpdateTranslationEntryAction::class)->execute(
     entry: $entry,
     data: UpdateTranslationEntryPayload::validateAndCreate([
         'value' => 'Save changes',
-        'expectedRevision' => $entry->revision,
+        'expectedRevision' => $expectedRevision,
     ]),
 );
 ```
@@ -405,6 +407,12 @@ composer quality
 ```
 
 `composer quality` checks Pint formatting, Larastan, and the isolated Testbench/Pest suite.
+
+## Supported PHP usage
+
+The source `@api` declarations identify supported workflows, extension contracts, and value types. Public members marked `@internal` and untagged implementation types remain package-owned. Concrete Actions retain their existing constructors, qualifiers, and `execute()` signatures.
+
+A package model returned or accepted by a public workflow is an identity/result handle. Use its declared type and `getKey()`, `getKeyName()`, `getMorphClass()`, `getRouteKey()`, `getRouteKeyName()`, `is()`, `isNot()`, and `relationLoaded()`. Read only explicitly declared in-memory `@nvl-consumer-read` fields; ordinary model PHPDocs and fillable attributes do not grant consumer reads. Obtain display projections through public reads. Persistence, additional model queries, relation access/loading, and generic model serialization are outside this contract. Host-model queries remain available, while traversal or aggregates of package capability relations require the package public reader or authorized adapter.
 
 ## License
 

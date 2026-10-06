@@ -11,6 +11,8 @@ use Nvl\Translations\Services\SourceTranslationWorkspace;
 
 /**
  * Lists translation entries with query filters and sorting.
+ *
+ * @api
  */
 final class ListTranslationEntriesAction
 {

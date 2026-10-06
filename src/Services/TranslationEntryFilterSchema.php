@@ -16,6 +16,8 @@ use Nvl\Translations\Exceptions\TranslationsException;
 
 /**
  * Canonical transport-neutral filters and sorts for translation catalog reads.
+ *
+ * @api
  */
 final class TranslationEntryFilterSchema
 {

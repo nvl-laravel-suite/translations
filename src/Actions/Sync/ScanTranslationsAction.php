@@ -13,6 +13,8 @@ use Nvl\Translations\Services\TranslationScanService;
 
 /**
  * Runs translation usage scanner.
+ *
+ * @api
  */
 final class ScanTranslationsAction implements ScanTranslationsContract
 {

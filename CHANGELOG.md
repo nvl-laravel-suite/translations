@@ -6,6 +6,7 @@ All notable changes to `nvl/translations` are documented here.
 
 ### Changed
 
+- Classify the supported consumer PHP surface with explicit source annotations and restrict package model handles to declared identity and in-memory read fields; preserve existing workflow behavior and concrete signatures.
 - Prepare lockstep major 5 with required and development NVL peer floors of `^5.0`. This candidate has not been tagged or published.
 - Namespace configuration, env and translation registrations while retaining existing translation workflows.
 - Review [UPGRADING.md](UPGRADING.md) before adopting the new names and infrastructure boundaries.

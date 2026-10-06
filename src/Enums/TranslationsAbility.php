@@ -6,6 +6,8 @@ namespace Nvl\Translations\Enums;
 
 /**
  * Stable capabilities for the optional Translations management API.
+ *
+ * @api
  */
 enum TranslationsAbility: string
 {

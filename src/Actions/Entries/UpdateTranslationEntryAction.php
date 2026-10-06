@@ -18,6 +18,8 @@ use Nvl\Translations\Support\TranslationValueHash;
 
 /**
  * Updates a single translation entry value.
+ *
+ * @api
  */
 final class UpdateTranslationEntryAction implements UpdateTranslationEntryContract
 {
