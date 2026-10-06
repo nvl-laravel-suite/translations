@@ -260,13 +260,13 @@ final class TranslationArtifactWriter
 
     private function backup(string $path, string $targetRoot, string $batch): void
     {
-        if (! (bool) config('translations.backup.enabled', true)
+        if (! (bool) config('nvl-translations.backup.enabled', true)
             || ! File::exists($path)) {
             return;
         }
 
         $configuredDirectory = config(
-            'translations.backup.directory',
+            'nvl-translations.backup.directory',
             storage_path('translations/backups'),
         );
 

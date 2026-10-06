@@ -12,7 +12,7 @@ use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Providers\TranslationsServiceProvider;
 
 test('consumer configuration wins while omitted nested package defaults remain available', function (): void {
-    config()->set('translations', [
+    config()->set('nvl-translations', [
         'routes' => [
             'prefix' => 'consumer/translations',
         ],
@@ -20,13 +20,13 @@ test('consumer configuration wins while omitted nested package defaults remain a
 
     (new TranslationsServiceProvider(app()))->register();
 
-    expect(config('translations.routes.prefix'))->toBe('consumer/translations')
-        ->and(config('translations.routes.enabled'))->toBeFalse()
-        ->and(config('translations.routes.management_middleware'))->toBe(['auth'])
-        ->and(config('translations.paths.app'))->toBe(lang_path())
-        ->and(config('translations.export_targets.source'))->toBe([])
-        ->and(config('translations.import.conflict_strategy'))->toBe('fail')
-        ->and(config('translations.scan_allowlist'))->toBe(['errors.*']);
+    expect(config('nvl-translations.routes.prefix'))->toBe('consumer/translations')
+        ->and(config('nvl-translations.routes.enabled'))->toBeFalse()
+        ->and(config('nvl-translations.routes.management_middleware'))->toBe(['auth'])
+        ->and(config('nvl-translations.paths.app'))->toBe(lang_path())
+        ->and(config('nvl-translations.export_targets.source'))->toBe([])
+        ->and(config('nvl-translations.import.conflict_strategy'))->toBe('fail')
+        ->and(config('nvl-translations.scan_allowlist'))->toBe(['errors.*']);
 });
 
 test('consumer service bindings survive package provider registration', function (): void {
@@ -51,21 +51,21 @@ test('consumer service bindings survive package provider registration', function
 });
 
 test('package validation translations load for supported locales', function (): void {
-    expect(trans('translations::translations/validation.attributes.value', [], 'en'))
+    expect(trans('nvl-translations::translations/validation.attributes.value', [], 'en'))
         ->toBe('translation value')
-        ->and(trans('translations::translations/validation.attributes.value', [], 'bg'))
+        ->and(trans('nvl-translations::translations/validation.attributes.value', [], 'bg'))
         ->toBe('стойност на превода');
 });
 
 test('management routes remain disabled by default', function (): void {
-    $this->getJson('/api/v1/translations')->assertNotFound();
-    $this->postJson('/api/v1/translations/import')->assertNotFound();
-    $this->postJson('/api/v1/translations/export')->assertNotFound();
-    $this->postJson('/api/v1/translations/scan')->assertNotFound();
+    $this->getJson('/nvl/api/v1/translations')->assertNotFound();
+    $this->postJson('/nvl/api/v1/translations/import')->assertNotFound();
+    $this->postJson('/nvl/api/v1/translations/export')->assertNotFound();
+    $this->postJson('/nvl/api/v1/translations/scan')->assertNotFound();
 });
 
 test('the package does not infer an application authorization policy', function (): void {
-    expect(config('translations.authorization.ability'))->toBeNull()
+    expect(config('nvl-translations.authorization.ability'))->toBeNull()
         ->and(fn () => app(TranslationsAuthorization::class)->authorize(
             TranslationsAbility::ListEntries,
         ))

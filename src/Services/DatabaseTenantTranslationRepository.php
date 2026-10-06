@@ -76,7 +76,7 @@ final readonly class DatabaseTenantTranslationRepository implements TenantTransl
 
     private function assertAllowed(string $key): void
     {
-        $configured = config('translations.tenant_overrides.keys', []);
+        $configured = config('nvl-translations.tenant_overrides.keys', []);
         $keys = is_array($configured) ? array_values(array_filter($configured, static fn (mixed $item): bool => is_string($item))) : [];
         if ($key === '' || str_contains($key, '/') || str_contains($key, '\\') || str_contains($key, '*') || ! in_array($key, $keys, true)) {
             throw new TenantBoundaryViolation('Translation key is not allowlisted for tenant copy overrides.');

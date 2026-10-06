@@ -30,19 +30,19 @@ beforeEach(function (): void {
     File::ensureDirectoryExists($this->translationSource);
 
     config([
-        'translations.paths.app' => $this->translationSource,
-        'translations.discovery.modules' => false,
-        'translations.discovery.vendor' => false,
-        'translations.custom_scopes' => [],
-        'translations.export_targets' => [
+        'nvl-translations.paths.app' => $this->translationSource,
+        'nvl-translations.discovery.modules' => false,
+        'nvl-translations.discovery.vendor' => false,
+        'nvl-translations.custom_scopes' => [],
+        'nvl-translations.export_targets' => [
             'source' => [],
             'generated' => [
                 'app' => $this->translationTarget,
             ],
         ],
-        'translations.import.conflict_strategy' => 'prefer_database',
-        'translations.import.fail_on_error' => true,
-        'translations.backup.directory' => $this->translationSyncRoot.'/backups',
+        'nvl-translations.import.conflict_strategy' => 'prefer_database',
+        'nvl-translations.import.fail_on_error' => true,
+        'nvl-translations.backup.directory' => $this->translationSyncRoot.'/backups',
     ]);
 });
 
@@ -254,10 +254,10 @@ test('scope and destination selection only accepts configured names and safe loc
 test('custom file scopes resolve from configuration', function (): void {
     $customPath = $this->translationSyncRoot.'/shared';
     config([
-        'translations.custom_scopes' => [
+        'nvl-translations.custom_scopes' => [
             'shared' => $customPath,
         ],
-        'translations.export_targets.generated.custom:shared' => $this->translationSyncRoot.'/shared-output',
+        'nvl-translations.export_targets.generated.custom:shared' => $this->translationSyncRoot.'/shared-output',
     ]);
 
     $scope = app(TranslationScopeResolver::class)->resolveScopes(['custom:shared'])[0];
@@ -342,12 +342,12 @@ test('conflicts fail safely and explicit strategies retain conflict metadata', f
     );
     File::put($this->translationSource.'/en.json', '{"Save":"File edit"}');
 
-    config()->set('translations.import.conflict_strategy', 'fail');
+    config()->set('nvl-translations.import.conflict_strategy', 'fail');
 
     expect(fn () => app(ImportTranslationsAction::class)->execute(['app'], 'json'))
         ->toThrow(TranslationsException::class, 'sync conflict');
 
-    config()->set('translations.import.conflict_strategy', 'prefer_file');
+    config()->set('nvl-translations.import.conflict_strategy', 'prefer_file');
     $result = app(ImportTranslationsAction::class)->execute(['app'], 'json');
     $resolved = $entry->fresh();
 
@@ -387,7 +387,7 @@ test('export re-reads authoritative files and creates replacement backups', func
             'expectedRevision' => $entry->revision,
         ]),
     );
-    config()->set('translations.import.conflict_strategy', 'prefer_database');
+    config()->set('nvl-translations.import.conflict_strategy', 'prefer_database');
     app(ExportTranslationsAction::class)->execute(['app'], null, 'json', 'source');
 
     expect(File::allFiles($this->translationSyncRoot.'/backups'))->not->toBeEmpty();
@@ -429,7 +429,7 @@ test('doctor and status commands report a healthy standalone workspace', functio
 });
 
 test('doctor strict mode promotes disabled backup warnings to failures', function (): void {
-    config()->set('translations.backup.enabled', false);
+    config()->set('nvl-translations.backup.enabled', false);
 
     $this->artisan('nvl:translations:doctor', [
         '--format' => 'json',

@@ -117,7 +117,7 @@ final class TranslationImportService
             static fn (array $item): bool => $item['parsed']['warnings'] !== [],
         ));
 
-        if ($readWarnings !== [] && (bool) config('translations.import.fail_on_error', true)) {
+        if ($readWarnings !== [] && (bool) config('nvl-translations.import.fail_on_error', true)) {
             throw new TranslationsException(
                 'Translation import stopped before database synchronization: '.
                 implode(' ', array_merge(...array_map(
@@ -457,7 +457,7 @@ final class TranslationImportService
                 ->keyBy(fn (TranslationEntry $entry): string => $entry->identity_hash);
 
             $strategy = TranslationConflictStrategy::tryFrom(TranslationConfiguration::string(
-                'translations.import.conflict_strategy',
+                'nvl-translations.import.conflict_strategy',
                 TranslationConflictStrategy::Fail->value,
             )) ?? TranslationConflictStrategy::Fail;
 

@@ -64,7 +64,7 @@ final class TranslationsImportCommand extends Command
                 return self::FAILURE;
             }
 
-            config()->set('translations.import.conflict_strategy', $normalizedStrategy);
+            config()->set('nvl-translations.import.conflict_strategy', $normalizedStrategy);
         }
 
         $output = $this->option('output');

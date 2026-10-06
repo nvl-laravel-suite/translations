@@ -96,7 +96,7 @@ final class TranslationUnusedService
             $usedScoped[$scopedKey] = true;
         }
 
-        $configuredAllowlist = Config::get('translations.scan_allowlist', []);
+        $configuredAllowlist = Config::get('nvl-translations.scan_allowlist', []);
         $allowlist = is_array($configuredAllowlist)
             ? array_values(array_filter(
                 $configuredAllowlist,

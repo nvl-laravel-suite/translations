@@ -106,7 +106,7 @@ final class TranslationScanService
             $scanRun->save();
 
             $retentionDays = TranslationConfiguration::nonNegativeInteger(
-                'translations.scan.retention_days',
+                'nvl-translations.scan.retention_days',
                 30,
             );
 
@@ -136,7 +136,7 @@ final class TranslationScanService
         $this->extensions();
         $this->patterns();
         $this->scopeResolver->validateNamespaceConfiguration();
-        TranslationConfiguration::nonNegativeInteger('translations.scan.retention_days', 30);
+        TranslationConfiguration::nonNegativeInteger('nvl-translations.scan.retention_days', 30);
     }
 
     /**
@@ -301,7 +301,7 @@ final class TranslationScanService
      */
     private function patterns(): array
     {
-        $configured = config('translations.scan.patterns', []);
+        $configured = config('nvl-translations.scan.patterns', []);
 
         if (! is_array($configured)) {
             throw new TranslationsException('translations.scan.patterns must be a list of regular expressions.');
@@ -332,7 +332,7 @@ final class TranslationScanService
      */
     private function extensions(): array
     {
-        $configured = config('translations.scan.extensions', []);
+        $configured = config('nvl-translations.scan.extensions', []);
 
         if (! is_array($configured)) {
             throw new TranslationsException('translations.scan.extensions must be a list of file extensions.');
@@ -370,7 +370,7 @@ final class TranslationScanService
      */
     private function scanRoots(): array
     {
-        $configured = config('translations.scan.paths', []);
+        $configured = config('nvl-translations.scan.paths', []);
 
         if (! is_array($configured)) {
             throw new TranslationsException('translations.scan.paths must be a list of absolute directories.');

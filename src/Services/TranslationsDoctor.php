@@ -49,7 +49,7 @@ final readonly class TranslationsDoctor
     /** @return list<TranslationsDoctorCheckData> */
     private function tenantOverrideChecks(): array
     {
-        if (config('tenancy.enabled') !== true) {
+        if (config('nvl-tenancy.enabled') !== true) {
             return [];
         }
         $table = TranslationsTables::get(TranslationsTables::TenantOverrides);
@@ -77,7 +77,7 @@ final readonly class TranslationsDoctor
                     : 'Tenant copy override schema or identity index is incomplete.',
             );
         }
-        $keys = config('translations.tenant_overrides.keys', []);
+        $keys = config('nvl-translations.tenant_overrides.keys', []);
         $validKeys = is_array($keys) && array_is_list($keys)
             && ! array_any($keys, static fn (mixed $key): bool => ! is_string($key) || trim($key) === '' || str_contains($key, '/') || str_contains($key, '\\'));
         $checks[] = new TranslationsDoctorCheckData(
@@ -198,7 +198,7 @@ final readonly class TranslationsDoctor
 
     private function backupCheck(): TranslationsDoctorCheckData
     {
-        if (! (bool) config('translations.backup.enabled', true)) {
+        if (! (bool) config('nvl-translations.backup.enabled', true)) {
             return new TranslationsDoctorCheckData(
                 key: 'files.backup_directory',
                 severity: 'warning',
@@ -208,7 +208,7 @@ final readonly class TranslationsDoctor
         }
 
         try {
-            $directory = config('translations.backup.directory');
+            $directory = config('nvl-translations.backup.directory');
 
             if (! is_string($directory)) {
                 throw new RuntimeException('The backup directory must be a string.');
@@ -234,11 +234,11 @@ final readonly class TranslationsDoctor
 
     private function authorizationCheck(): TranslationsDoctorCheckData
     {
-        $configuredAbility = config('translations.authorization.ability');
+        $configuredAbility = config('nvl-translations.authorization.ability');
         $configuredName = is_string($configuredAbility) ? trim($configuredAbility) : '';
         $configured = $configuredName !== '' && Gate::has($configuredName);
         $usesCustomBoundary = ! $this->authorization instanceof ConfiguredTranslationsAuthorization;
-        $ready = ! (bool) config('translations.routes.enabled', false)
+        $ready = ! (bool) config('nvl-translations.routes.enabled', false)
             || $configured
             || $usesCustomBoundary;
 
@@ -247,7 +247,7 @@ final readonly class TranslationsDoctor
             severity: 'error',
             passed: $ready,
             message: match (true) {
-                ! (bool) config('translations.routes.enabled', false) => 'Authorization is bound; management routes are disabled.',
+                ! (bool) config('nvl-translations.routes.enabled', false) => 'Authorization is bound; management routes are disabled.',
                 $configured => 'The configured Gate ability protects management routes.',
                 $usesCustomBoundary => 'A custom TranslationsAuthorization implementation protects management routes.',
                 $configuredName !== '' => "Configured Gate ability [{$configuredName}] is not registered.",
@@ -280,7 +280,7 @@ final readonly class TranslationsDoctor
     private function exportTargetsCheck(): TranslationsDoctorCheckData
     {
         try {
-            $configured = config('translations.export_targets', []);
+            $configured = config('nvl-translations.export_targets', []);
 
             if (! is_array($configured)) {
                 throw new RuntimeException('translations.export_targets must be an associative target map.');
@@ -324,9 +324,9 @@ final readonly class TranslationsDoctor
     private function lockCheck(): TranslationsDoctorCheckData
     {
         try {
-            TranslationConfiguration::positiveInteger('translations.lock.seconds', 300);
-            TranslationConfiguration::nonNegativeInteger('translations.lock.wait_seconds', 0);
-            $configuredStore = config('translations.lock.store');
+            TranslationConfiguration::positiveInteger('nvl-translations.lock.seconds', 300);
+            TranslationConfiguration::nonNegativeInteger('nvl-translations.lock.wait_seconds', 0);
+            $configuredStore = config('nvl-translations.lock.store');
             $store = is_string($configuredStore) && trim($configuredStore) !== ''
                 ? trim($configuredStore)
                 : null;
@@ -354,7 +354,7 @@ final readonly class TranslationsDoctor
 
     private function routeCheck(): TranslationsDoctorCheckData
     {
-        if (! (bool) config('translations.routes.enabled', false)) {
+        if (! (bool) config('nvl-translations.routes.enabled', false)) {
             return new TranslationsDoctorCheckData(
                 key: 'routes.management',
                 severity: 'info',
@@ -364,7 +364,7 @@ final readonly class TranslationsDoctor
         }
 
         $middleware = array_values(array_filter(
-            (array) config('translations.routes.management_middleware', []),
+            (array) config('nvl-translations.routes.management_middleware', []),
             static fn (mixed $value): bool => is_string($value) && $value !== '',
         ));
         $requiredRoutes = [

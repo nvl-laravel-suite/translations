@@ -22,7 +22,7 @@ final class ConfiguredTranslationsAuthorization implements TranslationsAuthoriza
         TranslationsAbility $ability,
         ?TranslationEntry $entry = null,
     ): void {
-        $configuredAbility = config('translations.authorization.ability');
+        $configuredAbility = config('nvl-translations.authorization.ability');
 
         if (! is_string($configuredAbility) || $configuredAbility === '') {
             throw new AuthorizationException(

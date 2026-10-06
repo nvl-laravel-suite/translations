@@ -20,21 +20,21 @@ beforeEach(function (): void {
     File::ensureDirectoryExists($this->apiSource);
 
     config([
-        'translations.paths.app' => $this->apiSource,
-        'translations.discovery.modules' => false,
-        'translations.discovery.vendor' => false,
-        'translations.custom_scopes' => [],
-        'translations.export_targets' => [
+        'nvl-translations.paths.app' => $this->apiSource,
+        'nvl-translations.discovery.modules' => false,
+        'nvl-translations.discovery.vendor' => false,
+        'nvl-translations.custom_scopes' => [],
+        'nvl-translations.export_targets' => [
             'source' => [],
             'generated' => [
                 'app' => $this->apiTarget,
             ],
         ],
-        'translations.backup.directory' => $this->apiRoot.'/backups',
-        'translations.routes.enabled' => true,
-        'translations.routes.prefix' => 'api/v1',
-        'translations.routes.middleware' => ['api'],
-        'translations.routes.management_middleware' => [],
+        'nvl-translations.backup.directory' => $this->apiRoot.'/backups',
+        'nvl-translations.routes.enabled' => true,
+        'nvl-translations.routes.prefix' => 'nvl/api/v1',
+        'nvl-translations.routes.middleware' => ['api'],
+        'nvl-translations.routes.management_middleware' => [],
     ]);
     app()->instance(TranslationsAuthorization::class, $this->apiAuthorization);
 
@@ -61,7 +61,7 @@ test('management API lists a bounded filterable catalog with stable option shape
         ]);
     }
 
-    $this->getJson('/api/v1/translations?per_page=1&filter[locale]=en&sort=key')
+    $this->getJson('/nvl/api/v1/translations?per_page=1&filter[locale]=en&sort=key')
         ->assertSuccessful()
         ->assertJsonPath('data.entries.items.0.key', 'Alpha')
         ->assertJsonPath('data.entries.meta.perPage', 1)
@@ -71,7 +71,7 @@ test('management API lists a bounded filterable catalog with stable option shape
         ->assertJsonPath('data.locales', ['bg', 'en'])
         ->assertJsonPath('data.groups', ['messages']);
 
-    $this->getJson('/api/v1/translations?filter[raw_sql]=unsafe')
+    $this->getJson('/nvl/api/v1/translations?filter[raw_sql]=unsafe')
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['filter.raw_sql']);
 
@@ -82,26 +82,26 @@ test('management API lists a bounded filterable catalog with stable option shape
 test('management API requires force for writes and separately authorizes pruning', function (): void {
     File::put($this->apiSource.'/en.json', '{"Save":"Save"}');
 
-    $this->postJson('/api/v1/translations/import', [
+    $this->postJson('/nvl/api/v1/translations/import', [
         'scope' => ['app'],
         'format' => 'json',
     ])->assertSuccessful();
 
-    $this->postJson('/api/v1/translations/export', [
+    $this->postJson('/nvl/api/v1/translations/export', [
         'scope' => ['app'],
         'format' => 'json',
         'target' => 'generated',
         'dryRun' => true,
     ])->assertSuccessful();
 
-    $this->postJson('/api/v1/translations/export', [
+    $this->postJson('/nvl/api/v1/translations/export', [
         'scope' => ['app'],
         'format' => 'json',
         'target' => 'generated',
     ])->assertUnprocessable()
         ->assertJsonValidationErrors(['force']);
 
-    $this->postJson('/api/v1/translations/export', [
+    $this->postJson('/nvl/api/v1/translations/export', [
         'scope' => ['app'],
         'format' => 'json',
         'target' => 'generated',
@@ -118,14 +118,14 @@ test('management API requires force for writes and separately authorizes pruning
 
 test('management API exposes stable conflict and lock response codes', function (): void {
     File::put($this->apiSource.'/en.json', '{"Save":"Save"}');
-    $this->postJson('/api/v1/translations/import', [
+    $this->postJson('/nvl/api/v1/translations/import', [
         'scope' => ['app'],
         'format' => 'json',
     ])->assertSuccessful();
     $entry = TranslationEntry::query()->sole();
     expect(TranslationEntry::query()->whereKey($entry->id)->exists())->toBeTrue();
 
-    $response = $this->patchJson("/api/v1/translations/entries/{$entry->id}", [
+    $response = $this->patchJson("/nvl/api/v1/translations/entries/{$entry->id}", [
         'value' => 'Stale',
         'expectedRevision' => $entry->revision + 1,
     ]);
@@ -136,7 +136,7 @@ test('management API exposes stable conflict and lock response codes', function 
     expect($lock->get())->toBeTrue();
 
     try {
-        $this->postJson('/api/v1/translations/import', [
+        $this->postJson('/nvl/api/v1/translations/import', [
             'scope' => ['app'],
             'format' => 'json',
         ])->assertStatus(423)
@@ -147,7 +147,7 @@ test('management API exposes stable conflict and lock response codes', function 
 });
 
 test('management API renders invalid scope input as a validation response', function (): void {
-    $this->postJson('/api/v1/translations/import', [
+    $this->postJson('/nvl/api/v1/translations/import', [
         'scope' => ['custom:missing'],
         'format' => 'json',
     ])->assertUnprocessable()
@@ -155,26 +155,26 @@ test('management API renders invalid scope input as a validation response', func
 });
 
 test('management API rejects ambiguous lists, oversized tokens, and missing update values', function (): void {
-    $this->postJson('/api/v1/translations/import', [
+    $this->postJson('/nvl/api/v1/translations/import', [
         'scope' => ['named' => 'app'],
         'format' => 'json',
     ])->assertUnprocessable()
         ->assertJsonValidationErrors(['scope']);
 
-    $this->postJson('/api/v1/translations/import', [
+    $this->postJson('/nvl/api/v1/translations/import', [
         'scope' => str_repeat('a', 256),
         'format' => 'json',
     ])->assertUnprocessable()
         ->assertJsonValidationErrors(['scope']);
 
     File::put($this->apiSource.'/en.json', '{"Save":"Save"}');
-    $this->postJson('/api/v1/translations/import', [
+    $this->postJson('/nvl/api/v1/translations/import', [
         'scope' => ['app'],
         'format' => 'json',
     ])->assertSuccessful();
     $entry = TranslationEntry::query()->sole();
 
-    $this->patchJson("/api/v1/translations/entries/{$entry->id}", [
+    $this->patchJson("/nvl/api/v1/translations/entries/{$entry->id}", [
         'expectedRevision' => $entry->revision,
     ])->assertUnprocessable()
         ->assertJsonValidationErrors(['value']);

@@ -7,14 +7,14 @@ use Nvl\Translations\Http\Controllers\Api\TranslationsApiController;
 use Nvl\Translations\Support\TranslationConfiguration;
 
 $routeMiddleware = array_values(array_filter(
-    (array) config('translations.routes.middleware', ['api']),
+    (array) config('nvl-translations.routes.middleware', ['api']),
     static fn (mixed $value): bool => is_string($value) && $value !== '',
 ));
 $managementMiddleware = array_values(array_filter(
-    (array) config('translations.routes.management_middleware', ['auth']),
+    (array) config('nvl-translations.routes.management_middleware', ['auth']),
     static fn (mixed $value): bool => is_string($value) && $value !== '',
 ));
-$prefix = trim(TranslationConfiguration::string('translations.routes.prefix', 'api/v1'), '/');
+$prefix = trim(TranslationConfiguration::string('nvl-translations.routes.prefix', 'nvl/api/v1'), '/');
 
 Route::middleware($routeMiddleware)->prefix($prefix)->group(function () use ($managementMiddleware): void {
     Route::middleware($managementMiddleware)

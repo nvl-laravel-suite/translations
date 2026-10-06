@@ -52,7 +52,7 @@ final class UpdateTranslationEntryPayload extends Data
      */
     public static function messages(): array
     {
-        return self::translatedMessages('translations::translations');
+        return self::translatedMessages('nvl-translations::translations');
     }
 
     /**
@@ -62,6 +62,6 @@ final class UpdateTranslationEntryPayload extends Data
      */
     public static function attributes(): array
     {
-        return self::translatedAttributes('translations::translations');
+        return self::translatedAttributes('nvl-translations::translations');
     }
 }

@@ -57,7 +57,7 @@ final class ExportTranslationsData extends Data
 
             if (! filter_var($input['dryRun'] ?? false, FILTER_VALIDATE_BOOLEAN)
                 && ! filter_var($input['force'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-                $validator->errors()->add('force', trans('translations::translations/validation.force_required'));
+                $validator->errors()->add('force', trans('nvl-translations::translations/validation.force_required'));
             }
         });
     }

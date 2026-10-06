@@ -33,15 +33,15 @@ final class TranslationScopeResolver
             new TranslationScope(
                 TranslationScopeType::App,
                 'app',
-                $this->configuredPath('translations.paths.app', lang_path()),
+                $this->configuredPath('nvl-translations.paths.app', lang_path()),
             ),
         ];
 
-        if ((bool) config('translations.discovery.modules', true)) {
+        if ((bool) config('nvl-translations.discovery.modules', true)) {
             $scopes = [...$scopes, ...$this->discoverModuleScopes()];
         }
 
-        if ((bool) config('translations.discovery.vendor', true)) {
+        if ((bool) config('nvl-translations.discovery.vendor', true)) {
             $scopes = [...$scopes, ...$this->discoverVendorScopes()];
         }
 
@@ -120,7 +120,7 @@ final class TranslationScopeResolver
         }
 
         $this->assertTargetName($targetName);
-        $targets = config('translations.export_targets', []);
+        $targets = config('nvl-translations.export_targets', []);
 
         if (! is_array($targets) || ! array_key_exists($targetName, $targets)) {
             throw new InvalidTranslationInputException("Unknown translation export target [{$targetName}].");
@@ -155,8 +155,8 @@ final class TranslationScopeResolver
             $paths[$scope->token()] = $this->resolveExportPath($scope, $target);
         }
 
-        $backupDirectory = config('translations.backup.directory');
-        if ((bool) config('translations.backup.enabled', true)
+        $backupDirectory = config('nvl-translations.backup.directory');
+        if ((bool) config('nvl-translations.backup.enabled', true)
             && is_string($backupDirectory)
             && trim($backupDirectory) !== '') {
             $backupPath = $this->paths->root($backupDirectory);
@@ -257,7 +257,7 @@ final class TranslationScopeResolver
      */
     private function discoverModuleScopes(): array
     {
-        $configuredRoots = config('translations.module_roots', []);
+        $configuredRoots = config('nvl-translations.module_roots', []);
 
         if (! is_array($configuredRoots)) {
             throw new TranslationsException('translations.module_roots must be a list of absolute directories.');
@@ -310,7 +310,7 @@ final class TranslationScopeResolver
      */
     private function discoverVendorScopes(): array
     {
-        $vendorRoot = $this->configuredPath('translations.paths.vendor', lang_path('vendor'));
+        $vendorRoot = $this->configuredPath('nvl-translations.paths.vendor', lang_path('vendor'));
 
         if (! File::isDirectory($vendorRoot)) {
             return [];
@@ -341,7 +341,7 @@ final class TranslationScopeResolver
      */
     private function configuredCustomScopes(): array
     {
-        $configured = config('translations.custom_scopes', []);
+        $configured = config('nvl-translations.custom_scopes', []);
 
         if (! is_array($configured)) {
             throw new TranslationsException('translations.custom_scopes must be an associative name-to-path map.');
@@ -402,7 +402,7 @@ final class TranslationScopeResolver
      */
     private function namespaceMap(): array
     {
-        $configured = config('translations.scan.namespaces', []);
+        $configured = config('nvl-translations.scan.namespaces', []);
 
         if (! is_array($configured)) {
             throw new TranslationsException('translations.scan.namespaces must be a namespace-to-scope map.');

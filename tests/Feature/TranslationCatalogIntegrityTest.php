@@ -28,20 +28,20 @@ beforeEach(function (): void {
     File::ensureDirectoryExists($this->catalogSource);
 
     config([
-        'translations.paths.app' => $this->catalogSource,
-        'translations.discovery.modules' => false,
-        'translations.discovery.vendor' => false,
-        'translations.custom_scopes' => [],
-        'translations.export_targets' => [
+        'nvl-translations.paths.app' => $this->catalogSource,
+        'nvl-translations.discovery.modules' => false,
+        'nvl-translations.discovery.vendor' => false,
+        'nvl-translations.custom_scopes' => [],
+        'nvl-translations.export_targets' => [
             'source' => [],
             'generated' => [
                 'app' => $this->catalogTarget,
             ],
         ],
-        'translations.import.conflict_strategy' => 'prefer_database',
-        'translations.import.fail_on_error' => true,
-        'translations.backup.directory' => $this->catalogRoot.'/backups',
-        'translations.scan.paths' => [$this->catalogRoot.'/code'],
+        'nvl-translations.import.conflict_strategy' => 'prefer_database',
+        'nvl-translations.import.fail_on_error' => true,
+        'nvl-translations.backup.directory' => $this->catalogRoot.'/backups',
+        'nvl-translations.scan.paths' => [$this->catalogRoot.'/code'],
     ]);
 });
 
@@ -187,16 +187,16 @@ test('duplicate discovered scope names and overlapping export destinations fail 
     File::ensureDirectoryExists($firstRoot.'/Billing/lang');
     File::ensureDirectoryExists($secondRoot.'/Billing/lang');
     config([
-        'translations.discovery.modules' => true,
-        'translations.module_roots' => [$firstRoot, $secondRoot],
+        'nvl-translations.discovery.modules' => true,
+        'nvl-translations.module_roots' => [$firstRoot, $secondRoot],
     ]);
 
     expect(fn () => app(TranslationScopeResolver::class)->discoverScopes())
         ->toThrow(TranslationsException::class, 'multiple directories');
 
     config([
-        'translations.discovery.modules' => false,
-        'translations.export_targets.generated.app' => $this->catalogSource.'/generated',
+        'nvl-translations.discovery.modules' => false,
+        'nvl-translations.export_targets.generated.app' => $this->catalogSource.'/generated',
     ]);
 
     expect(fn () => app(TranslationScopeResolver::class)->resolveExportPaths(
@@ -211,16 +211,16 @@ test('ambiguous scanner namespaces require an explicit scope mapping', function 
     File::ensureDirectoryExists($moduleRoot.'/Foo/lang');
     File::ensureDirectoryExists($customRoot);
     config([
-        'translations.discovery.modules' => true,
-        'translations.module_roots' => [$moduleRoot],
-        'translations.custom_scopes' => ['Foo' => $customRoot],
+        'nvl-translations.discovery.modules' => true,
+        'nvl-translations.module_roots' => [$moduleRoot],
+        'nvl-translations.custom_scopes' => ['Foo' => $customRoot],
     ]);
     $resolver = app(TranslationScopeResolver::class);
 
     expect(fn () => $resolver->resolveNamespace('foo'))
         ->toThrow(TranslationsException::class, 'ambiguous');
 
-    config(['translations.scan.namespaces.foo' => 'module:Foo']);
+    config(['nvl-translations.scan.namespaces.foo' => 'module:Foo']);
 
     expect($resolver->resolveNamespace('foo')?->token())->toBe('module:Foo');
 });
@@ -237,11 +237,11 @@ test('usage identity preserves distinct namespaces referenced on the same line',
         "<?php\n\n__('foo::messages.save'); __('bar::messages.save');\n",
     );
     config([
-        'translations.custom_scopes' => [
+        'nvl-translations.custom_scopes' => [
             'foo' => $fooRoot,
             'bar' => $barRoot,
         ],
-        'translations.scan.namespaces' => [
+        'nvl-translations.scan.namespaces' => [
             'foo' => 'custom:foo',
             'bar' => 'custom:bar',
         ],
@@ -310,12 +310,12 @@ JS);
 });
 
 test('scanner rejects invalid patterns and symbolic-link file escapes', function (): void {
-    config(['translations.scan.patterns' => ['/[/']]);
+    config(['nvl-translations.scan.patterns' => ['/[/']]);
 
     expect(fn () => app(ScanTranslationsAction::class)->execute())
         ->toThrow(TranslationsException::class, 'Invalid translation scanner pattern');
 
-    config(['translations.scan.patterns' => [
+    config(['nvl-translations.scan.patterns' => [
         "/(?:(?:__|trans)\\s*\\(\\s*['\"]([^'\"]+)['\"])/",
     ]]);
     $codeRoot = $this->catalogRoot.'/code';
@@ -554,7 +554,7 @@ test('exports refuse to overwrite from an incomplete authoritative read', functi
     File::put($this->catalogSource.'/en.json', '{"Save":"Save"}');
     app(ImportTranslationsAction::class)->execute(['app'], 'json');
     File::put($this->catalogSource.'/en.json', '{"Save":');
-    config()->set('translations.import.fail_on_error', false);
+    config()->set('nvl-translations.import.fail_on_error', false);
 
     expect(fn () => app(ExportTranslationsAction::class)->execute(
         ['app'],
@@ -569,7 +569,7 @@ test('exports refuse to overwrite from an incomplete authoritative read', functi
 test('status command constrains aggregates to explicitly selected scopes', function (): void {
     $customPath = $this->catalogRoot.'/custom';
     File::ensureDirectoryExists($customPath);
-    config(['translations.custom_scopes.shared' => $customPath]);
+    config(['nvl-translations.custom_scopes.shared' => $customPath]);
 
     foreach ([
         ['scope_type' => 'app', 'scope_name' => 'app', 'key' => 'App', 'sync_status' => 'edited'],

@@ -38,9 +38,9 @@ final class TranslationProcessLock
 
         $lock = $cacheStore->lock(
             'nvl:translations:workspace',
-            TranslationConfiguration::positiveInteger('translations.lock.seconds', 300),
+            TranslationConfiguration::positiveInteger('nvl-translations.lock.seconds', 300),
         );
-        $wait = TranslationConfiguration::nonNegativeInteger('translations.lock.wait_seconds', 0);
+        $wait = TranslationConfiguration::nonNegativeInteger('nvl-translations.lock.wait_seconds', 0);
 
         try {
             if ($wait > 0) {

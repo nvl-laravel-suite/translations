@@ -11,11 +11,11 @@ See the [installation and publishing guide](https://github.com/nvl-laravel-suite
 
 | Item | Value |
 |---|---|
-| Installed through | `composer require nvl/translations:^2.0` |
+| Installed through | `composer require nvl/translations:^5.0` |
 | Module identifier | `nvl/translations` |
 | PHP namespace | `Nvl\Translations` |
 | Service provider | `Nvl\Translations\Providers\TranslationsServiceProvider` |
-| Configuration | `config/translations.php` |
+| Configuration | `config/nvl-translations.php` |
 
 The suite's Laravel 13 file-catalog module for reading, scanning, editing, synchronizing, and resaving PHP-array and JSON translation files.
 
@@ -39,24 +39,24 @@ The database is an editing and synchronization workspace. It is not installed as
 - `nvl/core`, `nvl/filterable`, and `nvl/tenancy`
 
 ```bash
-composer require nvl/translations:^2.0
+composer require nvl/translations:^5.0
 php artisan migrate
-php artisan vendor:publish --tag=translations-config
-php artisan vendor:publish --tag=translations-skills
+php artisan vendor:publish --tag=nvl-translations-config
+php artisan vendor:publish --tag=nvl-translations-skills
 ```
 
 Choose exactly one migration owner. For automatic vendor loading, leave
-`translations.migrations.enabled=true` and do not publish
-`translations-migrations`. For host-owned migrations, run
-`php artisan vendor:publish --tag=translations-migrations`, set
-`translations.migrations.enabled=false` before the first migration, and
+`nvl-translations.migrations.enabled=true` and do not publish
+`nvl-translations-migrations`. For host-owned migrations, run
+`php artisan vendor:publish --tag=nvl-translations-migrations`, set
+`nvl-translations.migrations.enabled=false` before the first migration, and
 maintain the copied files as application migrations. Never run both sources;
 Laravel retimestamps published migrations.
 
 The package supplies English and Bulgarian validation copy. Publish overrides when needed:
 
 ```bash
-php artisan vendor:publish --tag=translations-translations
+php artisan vendor:publish --tag=nvl-translations-translations
 ```
 
 ## File formats
@@ -324,7 +324,7 @@ php artisan nvl:translations:scan
 php artisan nvl:translations:unused --help
 ```
 
-Dynamic keys cannot be discovered statically. Preserve them in unused reports with `translations.scan_allowlist`.
+Dynamic keys cannot be discovered statically. Preserve them in unused reports with `nvl-translations.scan_allowlist`.
 
 The scanner is intentionally heuristic: it records only configured literal-key call patterns. The package defaults cover Laravel helpers, `Lang::get`, `Lang::choice`, Blade `@lang`/`@choice`, and JavaScript `t`/`$t`; override `scan.patterns` only with tested regular expressions. Non-namespaced usages belong to the `app` scope; an unknown namespace is skipped rather than treated as a global usage. Successful scans prune usage history older than `scan.retention_days` when retention is greater than zero.
 
@@ -344,12 +344,12 @@ All application nodes must use the same lock-capable cache store. Size the lock 
 
 ## Optional management API
 
-The API defaults to `api/v1/translations`:
+The API defaults to `nvl/api/v1/translations`:
 
 ```php
 'routes' => [
     'enabled' => true,
-    'prefix' => 'api/v1',
+    'prefix' => 'nvl/api/v1',
     'middleware' => ['api'],
     'management_middleware' => ['auth'],
 ],
@@ -395,7 +395,7 @@ the separate allowlisted override repository and exports private artifacts to
 `tenants/<tenant>/translations/<artifact>.json`; it never rewrites source files
 or mutates Laravel's global translator.
 
-DTOs and enums register with Core's Data provider; configured type generation includes them automatically. Publishing `translations-skills` installs package-specific agent guidance.
+DTOs and enums register with Core's Data provider; configured type generation includes them automatically. Publishing `nvl-translations-skills` installs package-specific agent guidance.
 
 From a standalone checkout of the public Translations repository:
 
@@ -417,11 +417,11 @@ Run `php artisan nvl:doctor --strict --format=json` to combine the read-only che
 
 ## Shared infrastructure options
 
-Set `translations.locks.store`, or inherit `nvl-core.locks.store` and `cache.default`. The historical `translations.lock.store` key remains supported for one major cycle and is reported through Core diagnostics. Workspace process locking uses the selected store; `lock.seconds` and `lock.wait_seconds` retain their operation-specific behavior.
+Set `nvl-translations.locks.store`, or inherit `nvl-core.locks.store` and `cache.default`. The historical `nvl-translations.lock.store` key remains supported for one major cycle and is reported through Core diagnostics. Workspace process locking uses the selected store; `lock.seconds` and `lock.wait_seconds` retain their operation-specific behavior.
 
 ## Next major: isolated schema identities
 
-Use `translations.tables.<logical-key>` for every table and `translations.connection` for its database connection. Null connection inherits `nvl-core.connection`, then Laravel's default. Tables are resolved at runtime by the package table definition helper.
+Use `nvl-translations.tables.<logical-key>` for every table and `nvl-translations.connection` for its database connection. Null connection inherits `nvl-core.connection`, then Laravel's default. Tables are resolved at runtime by the package table definition helper.
 
 | Logical key | New default | Previous name |
 | --- | --- | --- |
@@ -430,4 +430,8 @@ Use `translations.tables.<logical-key>` for every table and `translations.connec
 | `usages` | `nvl_translations_usages` | `translation_usages` |
 | `tenant_overrides` | `nvl_translations_tenant_overrides` | `tenant_translation_overrides` |
 
-Migration filenames contain `nvl_translations_`. Existing installations must complete the upgrade in `UPGRADING.md` before running new migrations. A pending creator rejects an existing target before any migration in the batch runs; legacy storage with old history needs an ownership decision.
+Migration filenames contain `nvl_translations_`. Existing installations must complete the upgrade in `UPGRADING.md` before running new migrations. A pending creator rejects an existing target before that owned migration runs; use `nvl:schema:preflight` for an explicit whole-batch check; legacy storage with old history needs an ownership decision.
+
+## Canonical configuration ownership
+
+Use `nvl-translations` settings in `config/nvl-translations.php` and canonical package environment names. Old generic roots are foreign unless an upgrading NVL host explicitly selects them in Core's default-off compatibility. Canonical false/null/empty values win; no old roots are populated or written back. Keep logical package/resource IDs unchanged. Review [Core's rename inventory and cache/worker cutover](https://github.com/nvl-laravel-suite/core/blob/main/UPGRADING.md#major-5-canonical-configuration-and-environment).

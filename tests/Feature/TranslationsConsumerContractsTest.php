@@ -58,20 +58,20 @@ __('JSON Used');
 PHP);
 
     config()->set([
-        'translations.paths.app' => $this->consumerSource,
-        'translations.discovery.modules' => false,
-        'translations.discovery.vendor' => false,
-        'translations.custom_scopes' => [],
-        'translations.export_targets' => [
+        'nvl-translations.paths.app' => $this->consumerSource,
+        'nvl-translations.discovery.modules' => false,
+        'nvl-translations.discovery.vendor' => false,
+        'nvl-translations.custom_scopes' => [],
+        'nvl-translations.export_targets' => [
             'source' => [],
             'generated' => ['app' => $this->consumerTarget],
         ],
-        'translations.import.conflict_strategy' => 'prefer_database',
-        'translations.import.fail_on_error' => true,
-        'translations.backup.enabled' => true,
-        'translations.backup.directory' => $this->consumerRoot.'/backups',
-        'translations.scan.paths' => [$this->consumerCode],
-        'translations.scan.extensions' => ['php'],
+        'nvl-translations.import.conflict_strategy' => 'prefer_database',
+        'nvl-translations.import.fail_on_error' => true,
+        'nvl-translations.backup.enabled' => true,
+        'nvl-translations.backup.directory' => $this->consumerRoot.'/backups',
+        'nvl-translations.scan.paths' => [$this->consumerCode],
+        'nvl-translations.scan.extensions' => ['php'],
     ]);
 });
 
@@ -469,7 +469,7 @@ test('configured authorization fails closed and passes ability plus entry to the
     expect(fn () => $authorization->authorize(TranslationsAbility::ListEntries))
         ->toThrow(AuthorizationException::class, 'requires an authorization binding');
 
-    config()->set('translations.authorization.ability', 'manage-translations');
+    config()->set('nvl-translations.authorization.ability', 'manage-translations');
     Gate::define(
         'manage-translations',
         static fn ($user, string $ability, ?TranslationEntry $entry = null): bool => $ability === 'update_entry'
@@ -495,27 +495,27 @@ test('configured authorization fails closed and passes ability plus entry to the
 
 test('typed configuration and hashes reject invalid consumer values', function (): void {
     config()->set([
-        'translations.consumer.string' => 'value',
-        'translations.consumer.positive' => 2,
-        'translations.consumer.non_negative' => 0,
+        'nvl-translations.consumer.string' => 'value',
+        'nvl-translations.consumer.positive' => 2,
+        'nvl-translations.consumer.non_negative' => 0,
     ]);
 
-    expect(TranslationConfiguration::string('translations.consumer.string', 'fallback'))->toBe('value')
-        ->and(TranslationConfiguration::positiveInteger('translations.consumer.positive', 1))->toBe(2)
-        ->and(TranslationConfiguration::nonNegativeInteger('translations.consumer.non_negative', 1))->toBe(0)
+    expect(TranslationConfiguration::string('nvl-translations.consumer.string', 'fallback'))->toBe('value')
+        ->and(TranslationConfiguration::positiveInteger('nvl-translations.consumer.positive', 1))->toBe(2)
+        ->and(TranslationConfiguration::nonNegativeInteger('nvl-translations.consumer.non_negative', 1))->toBe(0)
         ->and(TranslationValueHash::make(null))->toBe(hash('sha256', "null\0"))
         ->and(TranslationValueHash::make('value'))->toBe(hash('sha256', "string\0value"));
 
-    config()->set('translations.consumer.string', []);
-    expect(fn () => TranslationConfiguration::string('translations.consumer.string', 'fallback'))
+    config()->set('nvl-translations.consumer.string', []);
+    expect(fn () => TranslationConfiguration::string('nvl-translations.consumer.string', 'fallback'))
         ->toThrow(TranslationsException::class, 'must be a string');
 
-    config()->set('translations.consumer.positive', 0);
-    expect(fn () => TranslationConfiguration::positiveInteger('translations.consumer.positive', 1))
+    config()->set('nvl-translations.consumer.positive', 0);
+    expect(fn () => TranslationConfiguration::positiveInteger('nvl-translations.consumer.positive', 1))
         ->toThrow(TranslationsException::class, 'positive integer');
 
-    config()->set('translations.consumer.non_negative', -1);
-    expect(fn () => TranslationConfiguration::nonNegativeInteger('translations.consumer.non_negative', 1))
+    config()->set('nvl-translations.consumer.non_negative', -1);
+    expect(fn () => TranslationConfiguration::nonNegativeInteger('nvl-translations.consumer.non_negative', 1))
         ->toThrow(TranslationsException::class, 'non-negative integer');
 });
 
@@ -593,7 +593,7 @@ test('public list validation conflict responses and catalog keys are determinist
         'key' => 'Save',
     ]);
     $conflict = TranslationConflictException::forIdentity('app', 'en:json:Save');
-    $response = $conflict->render(Request::create('/api/v1/translations/import', 'POST'));
+    $response = $conflict->render(Request::create('/nvl/api/v1/translations/import', 'POST'));
 
     expect($phpEntry->fullKey())->toBe('messages.save')
         ->and($jsonEntry->fullKey())->toBe('Save')
@@ -607,8 +607,8 @@ test('public list validation conflict responses and catalog keys are determinist
 test('doctor reports invalid configuration as structured checks without mutation', function (
     array $values,
 ): void {
-    config()->set('translations', require __DIR__.'/../../config/translations.php');
-    config()->set('translations.paths.app', $this->consumerSource);
+    config()->set('nvl-translations', require __DIR__.'/../../config/nvl-translations.php');
+    config()->set('nvl-translations.paths.app', $this->consumerSource);
     config()->set($values);
 
     expect(collect(app(TranslationsDoctor::class)->inspect())->contains(
@@ -616,18 +616,18 @@ test('doctor reports invalid configuration as structured checks without mutation
     ))->toBeTrue();
 })->with([
     'enabled route boundary' => [[
-        'translations.routes.enabled' => true,
-        'translations.routes.management_middleware' => [],
+        'nvl-translations.routes.enabled' => true,
+        'nvl-translations.routes.management_middleware' => [],
     ]],
-    'relative app path' => [['translations.paths.app' => 'relative/path']],
-    'custom scopes' => [['translations.custom_scopes' => 'shared']],
-    'export targets' => [['translations.export_targets' => 'generated']],
-    'reserved source target' => [['translations.export_targets.source' => ['app' => '/tmp/output']]],
-    'backup path' => [['translations.backup.directory' => []]],
-    'lock seconds' => [['translations.lock.seconds' => 0]],
-    'lock wait' => [['translations.lock.wait_seconds' => -1]],
-    'scan paths' => [['translations.scan.paths' => 'app']],
-    'scan extensions' => [['translations.scan.extensions' => []]],
-    'scan retention' => [['translations.scan.retention_days' => -1]],
-    'scan patterns' => [['translations.scan.patterns' => ['/[/']]],
+    'relative app path' => [['nvl-translations.paths.app' => 'relative/path']],
+    'custom scopes' => [['nvl-translations.custom_scopes' => 'shared']],
+    'export targets' => [['nvl-translations.export_targets' => 'generated']],
+    'reserved source target' => [['nvl-translations.export_targets.source' => ['app' => '/tmp/output']]],
+    'backup path' => [['nvl-translations.backup.directory' => []]],
+    'lock seconds' => [['nvl-translations.lock.seconds' => 0]],
+    'lock wait' => [['nvl-translations.lock.wait_seconds' => -1]],
+    'scan paths' => [['nvl-translations.scan.paths' => 'app']],
+    'scan extensions' => [['nvl-translations.scan.extensions' => []]],
+    'scan retention' => [['nvl-translations.scan.retention_days' => -1]],
+    'scan patterns' => [['nvl-translations.scan.patterns' => ['/[/']]],
 ]);

@@ -7,9 +7,11 @@ namespace Nvl\Translations\Providers;
 use Illuminate\Support\ServiceProvider;
 use Nvl\Data\Services\TypeScriptSourceRegistry;
 use Nvl\Support\Doctor\PackageDoctorContributor;
+use Nvl\Support\Globals\GlobalNames;
 use Nvl\Support\Providers\TenantServiceProvider;
 use Nvl\Support\Tenancy\Services\TenantResourceRegistry;
 use Nvl\Support\Traits\MergesPackageConfiguration;
+use Nvl\Support\Traits\RegistersNamespacedResources;
 use Nvl\Tenancy\Services\TenantAdoptionRegistry;
 use Nvl\Translations\Actions\Entries\UpdateTranslationEntryAction;
 use Nvl\Translations\Actions\Sync\ImportTranslationsAction;
@@ -37,6 +39,7 @@ use Nvl\Translations\Tenancy\TranslationsResourceRegistrar;
 final class TranslationsServiceProvider extends ServiceProvider
 {
     use MergesPackageConfiguration;
+    use RegistersNamespacedResources;
 
     /**
      * Boot the application events.
@@ -54,10 +57,10 @@ final class TranslationsServiceProvider extends ServiceProvider
         $this->publishesMigrations([
             __DIR__.'/../../database/migrations' => database_path('migrations'),
         ], 'translations-migrations');
-        if ((bool) config('translations.migrations.enabled', true)) {
+        if ((bool) config('nvl-translations.migrations.enabled', true)) {
             $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
         }
-        if ((bool) config('translations.routes.enabled', false)) {
+        if ((bool) config('nvl-translations.routes.enabled', false)) {
             $this->loadRoutesFrom(__DIR__.'/../../routes/api.php');
         }
 
@@ -74,7 +77,7 @@ final class TranslationsServiceProvider extends ServiceProvider
         PackageDoctorContributor::register($this->app, 'nvl/translations', fn (): array => $this->app->make(TranslationsDoctor::class)->inspect());
 
         $this->app->register(TenantServiceProvider::class);
-        $this->mergePackageConfiguration(__DIR__.'/../../config/translations.php', 'translations');
+        $this->mergePackageConfiguration(__DIR__.'/../../config/nvl-translations.php', 'translations');
         (new TranslationsResourceRegistrar)->register($this->app->make(TenantResourceRegistry::class));
         $this->app->booted(function (): void {
             if ($this->app->bound(TenantAdoptionRegistry::class)) {
@@ -124,10 +127,9 @@ final class TranslationsServiceProvider extends ServiceProvider
     {
         $langPath = __DIR__.'/../../lang';
 
-        $this->loadTranslationsFrom($langPath, 'translations');
-        $this->loadJsonTranslationsFrom($langPath);
+        $this->app->make(GlobalNames::class)->translations('translations', $langPath, $this->app->make('translation.loader'));
         $this->publishes([
-            $langPath => lang_path('vendor/translations'),
+            $langPath => lang_path('vendor/nvl-translations'),
         ], 'translations-translations');
     }
 
@@ -137,7 +139,7 @@ final class TranslationsServiceProvider extends ServiceProvider
     protected function registerConfig(): void
     {
         $this->publishes([
-            __DIR__.'/../../config/translations.php' => config_path('translations.php'),
+            __DIR__.'/../../config/nvl-translations.php' => config_path('nvl-translations.php'),
         ], 'translations-config');
     }
 }

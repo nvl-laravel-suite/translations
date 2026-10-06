@@ -39,7 +39,7 @@ final class StringOrList implements ValidationRule
                 return;
             }
 
-            $fail('translations::translations/validation.string_or_list_limits')
+            $fail('nvl-translations::translations/validation.string_or_list_limits')
                 ->translate([
                     'attribute' => $attribute,
                     'items' => $this->maximumItems,
@@ -54,7 +54,7 @@ final class StringOrList implements ValidationRule
                 return;
             }
 
-            $fail('translations::translations/validation.string_or_list_limits')
+            $fail('nvl-translations::translations/validation.string_or_list_limits')
                 ->translate([
                     'attribute' => $attribute,
                     'items' => $this->maximumItems,
@@ -64,7 +64,7 @@ final class StringOrList implements ValidationRule
             return;
         }
 
-        $fail('translations::translations/validation.string_or_list')
+        $fail('nvl-translations::translations/validation.string_or_list')
             ->translate(['attribute' => $attribute]);
     }
 
