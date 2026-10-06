@@ -6,8 +6,8 @@ namespace Nvl\Translations\Actions;
 
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Nvl\Tenancy\Contracts\TenantContext;
-use Nvl\Tenancy\Services\TenantBoundary;
+use Nvl\Support\Tenancy\Contracts\TenantBoundary;
+use Nvl\Support\Tenancy\Contracts\TenantContext;
 use Nvl\Translations\Data\TenantTranslationExportData;
 use Nvl\Translations\Models\TenantTranslationOverride;
 use RuntimeException;

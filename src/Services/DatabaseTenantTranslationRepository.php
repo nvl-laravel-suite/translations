@@ -6,8 +6,8 @@ namespace Nvl\Translations\Services;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
-use Nvl\Tenancy\Exceptions\TenantBoundaryViolation;
-use Nvl\Tenancy\Services\TenantBoundary;
+use Nvl\Support\Tenancy\Contracts\TenantBoundary;
+use Nvl\Support\Tenancy\Exceptions\TenantBoundaryViolation;
 use Nvl\Translations\Contracts\TenantTranslationRepository;
 use Nvl\Translations\Exceptions\StaleTranslationWorkspaceException;
 use Nvl\Translations\Models\TenantTranslationOverride;

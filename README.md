@@ -409,3 +409,25 @@ composer quality
 ## License
 
 Released under the [MIT License](LICENSE).
+
+## Shared consumer diagnostics
+
+Run `php artisan nvl:doctor --strict --format=json` to combine the read-only checks from loaded NVL package providers. Errors fail the gate, and strict mode also fails warnings. This package's existing Doctor command remains available and uses the same package-owned inspection service.
+
+
+## Shared infrastructure options
+
+Set `translations.locks.store`, or inherit `nvl-core.locks.store` and `cache.default`. The historical `translations.lock.store` key remains supported for one major cycle and is reported through Core diagnostics. Workspace process locking uses the selected store; `lock.seconds` and `lock.wait_seconds` retain their operation-specific behavior.
+
+## Next major: isolated schema identities
+
+Use `translations.tables.<logical-key>` for every table and `translations.connection` for its database connection. Null connection inherits `nvl-core.connection`, then Laravel's default. Tables are resolved at runtime by the package table definition helper.
+
+| Logical key | New default | Previous name |
+| --- | --- | --- |
+| `entries` | `nvl_translations_entries` | `translation_entries` |
+| `scan_runs` | `nvl_translations_scan_runs` | `translation_scan_runs` |
+| `usages` | `nvl_translations_usages` | `translation_usages` |
+| `tenant_overrides` | `nvl_translations_tenant_overrides` | `tenant_translation_overrides` |
+
+Migration filenames contain `nvl_translations_`. Existing installations must complete the upgrade in `UPGRADING.md` before running new migrations. A pending creator rejects an existing target before any migration in the batch runs; legacy storage with old history needs an ownership decision.

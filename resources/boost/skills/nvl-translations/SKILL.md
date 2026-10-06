@@ -69,3 +69,16 @@ Test exact PHP/JSON round trips, Unicode, escaped values, custom outputs, malfor
 - Preserve disabled compatibility and package independence; tenant support never creates an undeclared Auth or Suite dependency.
 - Use registered package-owned resources, adoption adapters, Actions, and lifecycle APIs. Never add a generic tenant delete-all path or raw cross-package cleanup.
 - Treat mapping/configuration hashes, interruption checkpoints, conservation evidence, worker context, tenant-leading queries, and standalone consumption as release contracts.
+
+## Shared consumer diagnostics
+
+Run `php artisan nvl:doctor --strict --format=json` to combine checks from loaded NVL providers. Retain the package Doctor command for its detailed report; both paths reuse the package-owned inspection service.
+
+
+## Shared infrastructure options
+
+- Workspace operations resolve `translations.locks.store`, then Core, then `cache.default`. Support the old `lock.store` for one major cycle with diagnostics, while preserving `lock.seconds` and `lock.wait_seconds`.
+
+### Brownfield storage identities
+
+Resolve all package tables through the table helper and canonical `translations.tables.*`, connections through `translations.connection` with Core/Laravel inheritance. Defaults use `nvl_translations_*`; migration filenames include that package slug. Never silently adopt a matching table or generic migration filename. Run shared `nvl:doctor --strict --format=json` and the explicit `nvl:schema:upgrade --package=translations --claim-legacy --dry-run --format=json` before upgrading owned legacy storage. Validate the complete plan and choose one migration owner. Preserve host records, constraint names and stored morph values. Deprecated config inputs last one major; canonical options take precedence.

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Nvl\Translations\Tenancy;
 
 use Illuminate\Database\Migrations\Migrator;
+use Nvl\Support\Tenancy\Exceptions\TenantBoundaryViolation;
 use Nvl\Tenancy\Contracts\TenantAdoptionAdapter;
-use Nvl\Tenancy\Exceptions\TenantBoundaryViolation;
 use Nvl\Tenancy\Services\TenantAdoptionBoundary;
 use Nvl\Tenancy\ValueObjects\TenantAdoptionPlan;
 use Nvl\Tenancy\ValueObjects\TenantBackfillResult;
@@ -41,7 +41,7 @@ final readonly class TranslationsAdoptionAdapter implements TenantAdoptionAdapte
     {
         $schema = $this->adoption->connection($plan, 'translations.overrides')->getSchemaBuilder();
 
-        return new TenantVerification($schema->hasColumns(TranslationsTables::TenantOverrides, ['id', 'tenant_id', 'key', 'locale', 'value', 'revision']) ? [] : ['translations.overrides.schema']);
+        return new TenantVerification($schema->hasColumns(TranslationsTables::get(TranslationsTables::TenantOverrides), ['id', 'tenant_id', 'key', 'locale', 'value', 'revision']) ? [] : ['translations.overrides.schema']);
     }
 
     public function activate(TenantAdoptionPlan $plan): void

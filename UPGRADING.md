@@ -25,3 +25,28 @@ PHP array-key segments containing literal dots or empty strings must be renamed 
 Run a fresh scan after migrating. Usage identities now include the resolved scope, and the new scan-run linkage makes that scan the authoritative baseline while historical usage rows age out according to retention.
 
 Never assume a database edit may silently overwrite a changed file.
+
+## Shared Doctor integration
+
+The loaded package provider now contributes its existing inspection checks to Core's `nvl:doctor --strict --format=json`. The package command remains available. The shared gate fails errors and, in strict mode, warnings; no data upgrade is required for diagnostics.
+
+
+## Infrastructure option inheritance
+
+Move `lock.store` to `locks.store`, or set the canonical store to null to inherit Core and Laravel. Keep workspace `lock.seconds` and `lock.wait_seconds`; compatibility store inputs remain supported for one major cycle and are reported by Doctor. Rebuild cached configuration after changing stores.
+
+## Next major: isolated schema identities
+
+This is a breaking schema identity change. Back up storage and migration history, pause writes/workers, install this code with automatic package migrations disabled, and select one owner for migrations (vendor or published).
+
+```sh
+php artisan nvl:doctor --strict --format=json
+php artisan nvl:schema:upgrade --package=translations --claim-legacy --dry-run --format=json
+php artisan nvl:schema:upgrade --package=translations --claim-legacy --format=json
+```
+
+The command validates released columns and relational keys plus creating migration history, renames owned legacy tables to the effective `tables.*` targets and rewrites exact package migration identities while retaining batches and unrelated host records. It refuses foreign/incomplete shapes and conflicting targets. Explicit old table mappings retain those names; remove them when choosing new defaults. A second run is empty.
+
+Unmodified published files, including changed timestamps, map by verified checksum to the exact vendor migration identity and current package migration implementation. Modified host copies remain host-owned. Disable vendor loading when retaining a published owner; duplicate ownership fails before migration. No migration files or stored morph types are rewritten.
+
+DDL transactions are driver dependent and per connection. Inspect dry-run warnings for MySQL/MariaDB or split storage; after a failure, inspect completed steps before resuming. Schema-qualified rename targets require an explicit host schema move first. Re-enable your selected migration owner, migrate remaining package changes and rerun Doctor before resuming writes. See the suite upgrade guide for shared owner/locale inputs, Core option defaults and one-major deprecation rules.

@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
+use Nvl\Support\Config\PackageOptions;
 use Nvl\Translations\Exceptions\TranslationsException;
 use Nvl\Translations\Exceptions\TranslationWorkspaceLockedException;
 use Nvl\Translations\Support\TranslationConfiguration;
@@ -25,11 +26,7 @@ final class TranslationProcessLock
      */
     public function execute(string $operation, Closure $callback): mixed
     {
-        $configuredStore = config('translations.lock.store');
-        $store = is_string($configuredStore) && trim($configuredStore) !== ''
-            ? trim($configuredStore)
-            : null;
-        $cacheStore = Cache::store($store)->getStore();
+        $cacheStore = Cache::store(PackageOptions::lockStore('translations'))->getStore();
 
         if (! $cacheStore instanceof LockProvider) {
             $storeClass = $cacheStore::class;

@@ -7,6 +7,7 @@ namespace Nvl\Translations\Models;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Nvl\Support\Config\PackageStorage;
 use Nvl\Translations\Definitions\Tables\TranslationsTables;
 
 /**
@@ -50,5 +51,17 @@ final class TranslationScanRun extends Model
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
         ];
+    }
+
+    /** Resolve the configured package storage table. */
+    public function getTable(): string
+    {
+        return TranslationsTables::get(TranslationsTables::ScanRuns);
+    }
+
+    /** Resolve the package connection through shared infrastructure defaults. */
+    public function getConnectionName(): ?string
+    {
+        return PackageStorage::connectionName($this->connection ?? PackageStorage::connection('translations') ?? parent::getConnectionName());
     }
 }

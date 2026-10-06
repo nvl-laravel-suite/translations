@@ -7,6 +7,7 @@ namespace Nvl\Translations\Models;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Nvl\Support\Config\PackageStorage;
 use Nvl\Translations\Definitions\Tables\TranslationsTables;
 use Nvl\Translations\Enums\TranslationSyncStatus;
 use Nvl\Translations\Support\TranslationIdentity;
@@ -124,5 +125,17 @@ final class TranslationEntry extends Model
         }
 
         return $this->key;
+    }
+
+    /** Resolve the configured package storage table. */
+    public function getTable(): string
+    {
+        return TranslationsTables::get(TranslationsTables::Entries);
+    }
+
+    /** Resolve the package connection through shared infrastructure defaults. */
+    public function getConnectionName(): ?string
+    {
+        return PackageStorage::connectionName($this->connection ?? PackageStorage::connection('translations') ?? parent::getConnectionName());
     }
 }

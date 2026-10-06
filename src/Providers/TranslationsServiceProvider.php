@@ -6,10 +6,11 @@ namespace Nvl\Translations\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Nvl\Data\Services\TypeScriptSourceRegistry;
+use Nvl\Support\Doctor\PackageDoctorContributor;
+use Nvl\Support\Providers\TenantServiceProvider;
+use Nvl\Support\Tenancy\Services\TenantResourceRegistry;
 use Nvl\Support\Traits\MergesPackageConfiguration;
-use Nvl\Tenancy\Providers\TenancyServiceProvider;
 use Nvl\Tenancy\Services\TenantAdoptionRegistry;
-use Nvl\Tenancy\Services\TenantResourceRegistry;
 use Nvl\Translations\Actions\Entries\UpdateTranslationEntryAction;
 use Nvl\Translations\Actions\Sync\ImportTranslationsAction;
 use Nvl\Translations\Actions\Sync\ScanTranslationsAction;
@@ -27,6 +28,7 @@ use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Contracts\UpdateTranslationEntryContract;
 use Nvl\Translations\Services\ConfiguredTranslationsAuthorization;
 use Nvl\Translations\Services\DatabaseTenantTranslationRepository;
+use Nvl\Translations\Services\TranslationsDoctor;
 use Nvl\Translations\Tenancy\TranslationsResourceRegistrar;
 
 /**
@@ -69,12 +71,16 @@ final class TranslationsServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->register(TenancyServiceProvider::class);
+        PackageDoctorContributor::register($this->app, 'nvl/translations', fn (): array => $this->app->make(TranslationsDoctor::class)->inspect());
+
+        $this->app->register(TenantServiceProvider::class);
         $this->mergePackageConfiguration(__DIR__.'/../../config/translations.php', 'translations');
-        (new TranslationsResourceRegistrar)->register(
-            $this->app->make(TenantResourceRegistry::class),
-            $this->app->make(TenantAdoptionRegistry::class),
-        );
+        (new TranslationsResourceRegistrar)->register($this->app->make(TenantResourceRegistry::class));
+        $this->app->booted(function (): void {
+            if ($this->app->bound(TenantAdoptionRegistry::class)) {
+                (new TranslationsResourceRegistrar)->register($this->app->make(TenantResourceRegistry::class), $this->app->make(TenantAdoptionRegistry::class));
+            }
+        });
         $this->app->scopedIf(TenantTranslationRepository::class, DatabaseTenantTranslationRepository::class);
 
         $this->app->bindIf(

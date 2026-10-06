@@ -52,7 +52,7 @@ final readonly class TranslationsDoctor
         if (config('tenancy.enabled') !== true) {
             return [];
         }
-        $table = TranslationsTables::TenantOverrides;
+        $table = TranslationsTables::get(TranslationsTables::TenantOverrides);
         $exists = Schema::hasTable($table);
         $checks = [new TranslationsDoctorCheckData(
             key: 'tenancy.overrides.table',
@@ -96,7 +96,7 @@ final readonly class TranslationsDoctor
     private function schemaChecks(): array
     {
         $tables = [
-            TranslationsTables::Entries => [
+            TranslationsTables::get(TranslationsTables::Entries) => [
                 'columns' => [
                     'id', 'identity_hash', 'scope_type', 'scope_name', 'locale', 'format', 'group',
                     'key', 'value', 'source_hash', 'is_missing', 'revision', 'sync_status',
@@ -105,11 +105,11 @@ final readonly class TranslationsDoctor
                 ],
                 'identity' => true,
             ],
-            TranslationsTables::ScanRuns => [
+            TranslationsTables::get(TranslationsTables::ScanRuns) => [
                 'columns' => ['id', 'scanned_at', 'files', 'hits', 'created_at', 'updated_at'],
                 'identity' => false,
             ],
-            TranslationsTables::Usages => [
+            TranslationsTables::get(TranslationsTables::Usages) => [
                 'columns' => [
                     'id', 'identity_hash', 'scan_id', 'scope_type', 'scope_name', 'format',
                     'full_key', 'file_path', 'line', 'last_seen_at', 'created_at', 'updated_at',

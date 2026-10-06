@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Services;
 
-use Nvl\Tenancy\Contracts\TenantContext;
-use Nvl\Tenancy\Enums\TenantContextMode;
-use Nvl\Tenancy\Exceptions\TenantBoundaryViolation;
+use Nvl\Support\Tenancy\Contracts\TenantContext;
+use Nvl\Support\Tenancy\Enums\TenantContextMode;
+use Nvl\Support\Tenancy\Exceptions\TenantBoundaryViolation;
 
 /** Admits source-code translation tooling only in disabled or explicit platform context. */
 final readonly class SourceTranslationWorkspace
