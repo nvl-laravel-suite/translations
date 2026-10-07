@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Nvl\Support\Contracts\DomainEvent;
 use Nvl\Translations\Actions\Entries\UpdateTranslationEntryAction;
 use Nvl\Translations\Actions\Sync\ExportTranslationsAction;
 use Nvl\Translations\Actions\Sync\ImportTranslationsAction;
@@ -269,10 +269,10 @@ test('custom file scopes resolve from configuration', function (): void {
 });
 
 test('translation synchronization events are commit-aware', function (): void {
-    expect(is_subclass_of(TranslationEntryUpdated::class, ShouldDispatchAfterCommit::class))->toBeTrue()
-        ->and(is_subclass_of(TranslationsImported::class, ShouldDispatchAfterCommit::class))->toBeTrue()
-        ->and(is_subclass_of(TranslationsExported::class, ShouldDispatchAfterCommit::class))->toBeTrue()
-        ->and(is_subclass_of(TranslationsScanned::class, ShouldDispatchAfterCommit::class))->toBeTrue();
+    expect(is_subclass_of(TranslationEntryUpdated::class, DomainEvent::class))->toBeTrue()
+        ->and(is_subclass_of(TranslationsImported::class, DomainEvent::class))->toBeTrue()
+        ->and(is_subclass_of(TranslationsExported::class, DomainEvent::class))->toBeTrue()
+        ->and(is_subclass_of(TranslationsScanned::class, DomainEvent::class))->toBeTrue();
 
     Event::fake([TranslationsImported::class]);
     File::put($this->translationSource.'/en.json', '{"Save":"Save"}');

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Nvl\Filterable\Data\FilterSet;
 use Nvl\Filterable\Http\QueryFilterSetFactory;
+use Nvl\Support\Http\PackageExceptionRenderer;
 use Nvl\Translations\Actions\Entries\GetTranslationCatalogStatisticsAction;
 use Nvl\Translations\Actions\Entries\ListTranslationEntriesAction;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
@@ -593,13 +594,13 @@ test('public list validation conflict responses and catalog keys are determinist
         'key' => 'Save',
     ]);
     $conflict = TranslationConflictException::forIdentity('app', 'en:json:Save');
-    $response = $conflict->render(Request::create('/nvl/api/v1/translations/import', 'POST'));
+    $response = app(PackageExceptionRenderer::class)->render($conflict, Request::create('/nvl/api/v1/translations/import', 'POST', server: ['HTTP_ACCEPT' => 'application/json']));
 
     expect($phpEntry->fullKey())->toBe('messages.save')
         ->and($jsonEntry->fullKey())->toBe('Save')
         ->and($response->getStatusCode())->toBe(409)
         ->and($response->getData(true))->toMatchArray([
-            'message' => 'Translation sync conflict for [app:en:json:Save].',
+            'message' => __('nvl-translations::responsecode.translation_sync_conflict'),
             'code' => 'translation_sync_conflict',
         ]);
 });
