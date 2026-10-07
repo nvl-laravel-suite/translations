@@ -40,7 +40,7 @@ See the [installation and publishing guide](https://github.com/nvl-laravel-suite
 | Service provider | `Nvl\Translations\Providers\TranslationsServiceProvider` |
 | Configuration | `config/nvl-translations.php` |
 
-The suite's Laravel 13 file-catalog module for reading, scanning, editing, synchronizing, and resaving PHP-array and JSON translation files.
+The suite's Laravel 12–13 file-catalog module for reading, scanning, editing, synchronizing, and resaving PHP-array and JSON translation files.
 
 Use `nvl/translatable` for locale-specific Eloquent content. This package only manages Laravel language files.
 
@@ -58,7 +58,7 @@ The database is an editing and synchronization workspace. It is not installed as
 ## Requirements and installation
 
 - PHP 8.4+
-- Laravel 13
+- Laravel 12–13
 - `nvl/core`, `nvl/filterable`, and `nvl/tenancy`
 
 ```bash
@@ -106,7 +106,7 @@ lang/
 
 ## Configure source locations
 
-The application source defaults to Laravel's `lang_path()`, which is the root `lang` directory in Laravel 13:
+The application source defaults to Laravel's `lang_path()`, which is the root `lang` directory in Laravel 12–13:
 
 ```php
 'paths' => [
