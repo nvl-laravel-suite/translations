@@ -3,12 +3,12 @@
 ## Quickstart
 
 ```sh
-composer require nvl/translations:^5.0
+composer require nvl/translations:^6.0
 php artisan nvl:install translations --dry-run
 php artisan nvl:install translations
 ```
 
-Required NVL dependencies: `nvl/core` (`^5.1`), `nvl/filterable` (`^5.0`). Configure explicit application source roots before scanning. Catalog scan/usage records are global vocabulary; owner overrides require explicit admitted ownership.
+Required NVL dependencies: `nvl/core` (`^6.0`), `nvl/filterable` (`^6.0`). Configure explicit application source roots before scanning. Catalog scan/usage records are global vocabulary; owner overrides require explicit admitted ownership.
 Review the published common config, select one migration owner, and run schema preflight before existing-table upgrades. The installer does not enable features or run migrations. Follow the detailed installation and capability sections below before invoking a storage/provider operation.
 
 Inject `Nvl\Translations\Contracts\ScanTranslationsContract` in a host service. After supplying the trusted inputs described above, the first public call is:
@@ -34,7 +34,7 @@ See the [installation and publishing guide](https://github.com/nvl-laravel-suite
 
 | Item | Value |
 |---|---|
-| Installed through | `composer require nvl/translations:^5.0` |
+| Installed through | `composer require nvl/translations:^6.0` |
 | Module identifier | `nvl/translations` |
 | PHP namespace | `Nvl\Translations` |
 | Service provider | `Nvl\Translations\Providers\TranslationsServiceProvider` |
@@ -59,11 +59,11 @@ The database is an editing and synchronization workspace. It is not installed as
 
 - PHP 8.4+
 - Laravel 12–13
-- `nvl/core:^5.1` and `nvl/filterable`
+- `nvl/core:^6.0` and `nvl/filterable`
 - Optional `nvl/ownership` for isolated owner copy; optional `nvl/tenancy` only for the legacy bridge
 
 ```bash
-composer require nvl/translations:^5.0
+composer require nvl/translations:^6.0
 php artisan migrate
 php artisan vendor:publish --tag=nvl-translations-config
 php artisan vendor:publish --tag=nvl-translations-skills
@@ -589,11 +589,6 @@ The table lists enum discriminators, including any successful codes retained for
 | `scanned` | Exception-defined; see `suggestedStatus()` | Declared safe scalar/array map; otherwise `{}` | `nvl-translations::responsecode.scanned` |
 
 
-## License
-
-Released under the [MIT License](LICENSE).
-
-
 ## Native owner copy
 
 Configure `nvl-translations.models.override` with a subclass of `TranslationOverride`
@@ -619,3 +614,7 @@ native storage, preserve IDs, text, revisions and timestamps, and retain the old
 table. Legacy repository/export APIs deny native adopted storage, including when
 someone disables the configuration flag. They are deprecated bridge APIs with the
 migration window described in the Ownership upgrade guide.
+
+## License
+
+Released under the [MIT License](LICENSE).

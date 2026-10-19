@@ -5,6 +5,13 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+## [6.0.0] - 2026-10-20
+
+### Changed
+
+- Add native owner-local translation overrides, exact keys and revisions, reviewed copy adoption and owner-scoped reads/exports. Retain old overrides as provenance; source scanning and file mutation stay outside owner execution.
+- Align required/development NVL peers on `^6.0`, optional peer conflicts on major 6, and `dev-main` on `6.x-dev`. Review [UPGRADING.md](UPGRADING.md) before rollout.
+
 ## [5.0.1] - 2026-10-08
 
 ### Changed
