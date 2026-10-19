@@ -4,20 +4,28 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Services;
 
-use Nvl\Support\Tenancy\Contracts\TenantContext;
-use Nvl\Support\Tenancy\Enums\TenantContextMode;
-use Nvl\Support\Tenancy\Exceptions\TenantBoundaryViolation;
+use Nvl\Support\Ownership\Enums\OwnershipContextMode;
+use Nvl\Support\Ownership\Exceptions\OwnershipViolation;
+use Nvl\Support\Ownership\Services\OwnershipContextResolver;
+use Nvl\Translations\Compatibility\LegacySourceTranslationWorkspace;
 
-/** Admits source-code translation tooling only in disabled or explicit platform context. */
+/** Keeps source-code catalog tooling outside owner execution and owner copy persistence. */
 final readonly class SourceTranslationWorkspace
 {
-    public function __construct(private TenantContext $context) {}
+    /** Resolve current native state at each operation and preserve the disabled legacy workflow. */
+    public function __construct(private OwnershipContextResolver $ownership, private LegacySourceTranslationWorkspace $legacy) {}
 
-    /** Deny before any catalog query or filesystem access. */
+    /** Deny before catalog or filesystem access from any admitted owner or public site. */
     public function authorize(): void
     {
-        if (! in_array($this->context->snapshot()->mode, [TenantContextMode::Disabled, TenantContextMode::Platform], true)) {
-            throw new TenantBoundaryViolation('Source translation tooling requires explicit platform context.');
+        $snapshot = $this->ownership->current()->snapshot();
+        if ($snapshot->mode === OwnershipContextMode::Disabled) {
+            $this->legacy->authorize();
+
+            return;
+        }
+        if ($snapshot->publicSite !== null || ! in_array($snapshot->mode, [OwnershipContextMode::Unresolved, OwnershipContextMode::Central], true)) {
+            throw new OwnershipViolation('Source translation tooling is unavailable inside owner execution.');
         }
     }
 }

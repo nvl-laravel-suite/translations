@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Nvl\Support\Tenancy\Contracts\TenantBoundary;
 use Nvl\Support\Tenancy\Exceptions\TenantBoundaryViolation;
+use Nvl\Translations\Compatibility\LegacyTranslationOverrides;
 use Nvl\Translations\Contracts\TenantTranslationRepository;
 use Nvl\Translations\Exceptions\StaleTranslationWorkspaceException;
 use Nvl\Translations\Models\TenantTranslationOverride;
@@ -15,10 +16,11 @@ use Nvl\Translations\Models\TenantTranslationOverride;
 /** Persists allowlisted tenant copy without consulting or mutating source files. */
 final readonly class DatabaseTenantTranslationRepository implements TenantTranslationRepository
 {
-    public function __construct(private TenantBoundary $boundary) {}
+    public function __construct(private TenantBoundary $boundary, private LegacyTranslationOverrides $legacy) {}
 
     public function get(string $key, string $locale): ?string
     {
+        $this->legacy->assertLegacy();
         $this->assertAllowed($key);
         $value = $this->query($key, $locale)->value('value');
 
@@ -27,6 +29,7 @@ final readonly class DatabaseTenantTranslationRepository implements TenantTransl
 
     public function set(string $key, string $locale, string $value, int $expectedRevision): void
     {
+        $this->legacy->assertLegacy();
         $this->assertAllowed($key);
         $this->assertLocale($locale);
         if ($expectedRevision === 0) {
@@ -57,6 +60,7 @@ final readonly class DatabaseTenantTranslationRepository implements TenantTransl
 
     public function forget(string $key, string $locale, int $expectedRevision): void
     {
+        $this->legacy->assertLegacy();
         $this->assertAllowed($key);
         $this->assertLocale($locale);
         if ($this->query($key, $locale)->where('revision', $expectedRevision)->delete() !== 1) {

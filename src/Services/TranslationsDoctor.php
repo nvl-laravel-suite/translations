@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Nvl\Support\Ownership\Contracts\OwnershipReadiness;
+use Nvl\Support\Ownership\Exceptions\OwnershipException;
+use Nvl\Support\Ownership\Services\OwnershipConstraintInspector;
+use Nvl\Support\Ownership\Services\OwnershipResourceRegistry;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Data\TranslationsDoctorCheckData;
 use Nvl\Translations\Definitions\Tables\TranslationsTables;
@@ -26,6 +30,10 @@ final readonly class TranslationsDoctor
         private TranslationScopeResolver $scopes,
         private TranslationPathGuard $paths,
         private TranslationScanService $scanner,
+        private OwnershipResourceRegistry $ownership,
+        private OwnershipReadiness $readiness,
+        private OwnershipConstraintInspector $constraints,
+        private TranslationOverrideKeys $overrideKeys,
     ) {}
 
     /**
@@ -35,6 +43,7 @@ final readonly class TranslationsDoctor
     {
         return [
             ...$this->schemaChecks(),
+            ...$this->ownerOverrideChecks(),
             ...$this->tenantOverrideChecks(),
             $this->scopeCheck(),
             $this->exportTargetsCheck(),
@@ -44,6 +53,27 @@ final readonly class TranslationsDoctor
             $this->authorizationCheck(),
             $this->routeCheck(),
         ];
+    }
+
+    /** Inspect exact native source readiness without requiring an admitted owner.
+     * @return list<TranslationsDoctorCheckData>
+     */
+    private function ownerOverrideChecks(): array
+    {
+        $definition = $this->ownership->all()['translations.overrides'] ?? null;
+        if ($definition === null || $definition->ownership->strategy === 'unscoped') {
+            return [];
+        }
+        try {
+            $this->overrideKeys->all();
+            $this->readiness->assertActive('translations.overrides');
+            $model = new $definition->model;
+            $this->constraints->assertUniqueIndexes($model->getConnection(), $model->getTable(), [['owner_scope_key', 'key', 'locale']]);
+
+            return [new TranslationsDoctorCheckData(key: 'ownership.overrides', severity: 'error', passed: true, message: 'Native override storage, keys and identity uniqueness are ready.')];
+        } catch (OwnershipException $exception) {
+            return [new TranslationsDoctorCheckData(key: 'ownership.overrides', severity: 'error', passed: false, message: $exception->getMessage())];
+        }
     }
 
     /** @return list<TranslationsDoctorCheckData> */

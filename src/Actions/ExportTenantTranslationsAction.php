@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Nvl\Support\Tenancy\Contracts\TenantBoundary;
 use Nvl\Support\Tenancy\Contracts\TenantContext;
+use Nvl\Translations\Compatibility\LegacyTranslationOverrides;
 use Nvl\Translations\Contracts\ExportTenantTranslationsContract;
 use Nvl\Translations\Data\TenantTranslationExportData;
 use Nvl\Translations\Models\TenantTranslationOverride;
@@ -20,10 +21,11 @@ use RuntimeException;
  */
 final readonly class ExportTenantTranslationsAction implements ExportTenantTranslationsContract
 {
-    public function __construct(private TenantContext $context, private TenantBoundary $boundary) {}
+    public function __construct(private TenantContext $context, private TenantBoundary $boundary, private LegacyTranslationOverrides $legacy) {}
 
     public function execute(string $disk): TenantTranslationExportData
     {
+        $this->legacy->assertLegacy();
         $tenantId = $this->context->requireTenant()->value;
         $rows = $this->boundary->query(TenantTranslationOverride::query(), 'translations.overrides')
             ->orderBy('key')->orderBy('locale')->get(['key', 'locale', 'value', 'revision']);

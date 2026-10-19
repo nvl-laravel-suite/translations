@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use Nvl\Support\Ownership\Services\OwnershipContextResolver;
 use Nvl\Support\Tenancy\Contracts\TenantContext;
 use Nvl\Support\Tenancy\Enums\TenantContextMode;
 use Nvl\Support\Tenancy\Exceptions\TenantBoundaryViolation;
 use Nvl\Support\Tenancy\ValueObjects\TenantContextSnapshot;
 use Nvl\Support\Tenancy\ValueObjects\TenantId;
 use Nvl\Translations\Actions\Entries\ListTranslationEntriesAction;
+use Nvl\Translations\Compatibility\LegacySourceTranslationWorkspace;
 use Nvl\Translations\Services\SourceTranslationWorkspace;
 
 test('tenant cannot browse the source synchronization workspace', function (): void {
@@ -26,7 +28,7 @@ test('tenant cannot browse the source synchronization workspace', function (): v
             return $this->tenant;
         }
     };
-    $action = new ListTranslationEntriesAction(new SourceTranslationWorkspace($context));
+    $action = new ListTranslationEntriesAction(new SourceTranslationWorkspace(app(OwnershipContextResolver::class), new LegacySourceTranslationWorkspace($context)));
 
     expect(fn () => $action->execute())->toThrow(TenantBoundaryViolation::class);
 });

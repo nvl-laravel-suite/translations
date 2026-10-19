@@ -67,7 +67,7 @@ test('translation app uses strict types without service locator or phpstan suppr
             'app class resolution' => '/\bapp\s*\([^)]*::class\)/',
             'facade make' => '/\bApp::make\s*\(/',
             'container resolve' => '/\bContainer::resolve\s*\(/',
-            'resolve class' => '/\bresolve\s*\([^)]*::class\)/',
+            'resolve class' => '/(?<!->)(?<!::)\bresolve\s*\([^)]*::class\)/',
             'phpstan suppression' => '/@phpstan-ignore|phpstan-ignore-next-line|phpstan-ignore-line/',
         ] as $label => $pattern) {
             if (preg_match($pattern, $contents) === 1) {

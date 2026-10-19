@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Nvl\Support\Config\PackageStorage;
+use Nvl\Support\Ownership\Contracts\Ownable;
+use Nvl\Support\Ownership\Traits\HasOwnership;
 use Nvl\Translations\Database\Factories\TenantTranslationOverrideFactory;
 use Nvl\Translations\Definitions\Tables\TranslationsTables;
 
@@ -29,11 +31,12 @@ use Nvl\Translations\Definitions\Tables\TranslationsTables;
  *
  * @nvl-consumer-read id
  */
-final class TenantTranslationOverride extends Model
+final class TenantTranslationOverride extends Model implements Ownable
 {
     /** @use HasFactory<TenantTranslationOverrideFactory> */
     use HasFactory;
 
+    use HasOwnership;
     use HasUuids;
 
     protected $table = TranslationsTables::TenantOverrides;

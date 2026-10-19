@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
+use Nvl\Translations\Models\TranslationOverride;
+
 /** Complete runtime defaults; publication sections are declared in ../resources/config/sections.json. */
 return [
+    'models' => ['override' => TranslationOverride::class],
+    'ownership' => ['scoped' => true, 'keys' => []],
     'routes' => [
         'enabled' => false,
         'prefix' => 'nvl/api/v1',
