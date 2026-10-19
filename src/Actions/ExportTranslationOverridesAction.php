@@ -15,7 +15,11 @@ use Nvl\Translations\Services\TranslationOverrideKeys;
 use Nvl\Translations\Services\TranslationOverrideModels;
 use RuntimeException;
 
-/** Writes a private owner artifact without touching source files or legacy tenant storage. @api */
+/**
+ * Writes a private owner artifact without touching source files or legacy tenant storage.
+ *
+ * @api
+ */
 final readonly class ExportTranslationOverridesAction implements ExportTranslationOverridesContract
 {
     /** Retain neutral admission, canonical models and private storage. */

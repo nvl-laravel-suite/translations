@@ -13,7 +13,11 @@ use Nvl\Translations\Models\TranslationScanRun;
 use Nvl\Translations\Models\TranslationUsage;
 use Nvl\Translations\Services\TranslationOverrideModels;
 
-/** Registers global source catalogs separately from optional native owner copy. @internal */
+/**
+ * Registers global source catalogs separately from optional native owner copy.
+ *
+ * @internal
+ */
 final readonly class TranslationsResourceRegistrar
 {
     /** Retain the advertised native replacement registry. */

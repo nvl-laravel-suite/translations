@@ -6,7 +6,11 @@ namespace Nvl\Translations\Data;
 
 use Nvl\Support\Ownership\ValueObjects\OwnerReference;
 
-/** Immutable identity for one private native-owner copy artifact; it grants no read authority. @api */
+/**
+ * Immutable identity for one private native-owner copy artifact; it grants no read authority.
+ *
+ * @api
+ */
 final readonly class TranslationOverrideExportData
 {
     /** Record the original owner, private object and content digest. */

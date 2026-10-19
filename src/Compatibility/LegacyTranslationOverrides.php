@@ -12,7 +12,11 @@ use Nvl\Support\Ownership\Services\PersistedOwnershipStorage;
 use Nvl\Translations\Models\TenantTranslationOverride;
 use Nvl\Translations\Models\TranslationOverride;
 
-/** Prevents old override APIs from becoming a second authority after native adoption. @internal */
+/**
+ * Prevents old override APIs from becoming a second authority after native adoption.
+ *
+ * @internal
+ */
 final readonly class LegacyTranslationOverrides
 {
     /** Retain canonical declarations and actual-source downgrade detection. */

@@ -8,7 +8,11 @@ use Nvl\Support\Tenancy\Contracts\TenantContext;
 use Nvl\Support\Tenancy\Enums\TenantContextMode;
 use Nvl\Support\Tenancy\Exceptions\TenantBoundaryViolation;
 
-/** Preserves the old source-workspace admission only while the native context is disabled. @internal */
+/**
+ * Preserves the old source-workspace admission only while the native context is disabled.
+ *
+ * @internal
+ */
 final readonly class LegacySourceTranslationWorkspace
 {
     /** Retain the selected legacy request context. */

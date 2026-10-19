@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Contracts;
 
-/** Manages literal copy overrides within the currently admitted owner. @api */
+/**
+ * Manages literal copy overrides within the currently admitted owner.
+ *
+ * @api
+ */
 interface TranslationOverrideRepository
 {
     /** Read one allowed override from the current owner. */

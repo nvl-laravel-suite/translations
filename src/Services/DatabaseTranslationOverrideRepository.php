@@ -14,7 +14,11 @@ use Nvl\Translations\Contracts\TranslationOverrideRepository;
 use Nvl\Translations\Exceptions\StaleTranslationWorkspaceException;
 use Nvl\Translations\Models\TranslationOverride;
 
-/** Persists the exact configured owner override with atomic revision checks. @internal */
+/**
+ * Persists the exact configured owner override with atomic revision checks.
+ *
+ * @internal
+ */
 final readonly class DatabaseTranslationOverrideRepository implements TranslationOverrideRepository
 {
     /** Retain neutral boundaries and canonical model metadata. */

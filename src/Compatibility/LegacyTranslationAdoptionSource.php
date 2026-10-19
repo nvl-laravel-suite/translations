@@ -9,7 +9,11 @@ use Nvl\Support\Ownership\Exceptions\OwnershipConfigurationInvalid;
 use Nvl\Support\Ownership\Services\OwnershipResourceRegistry;
 use Nvl\Translations\Models\TenantTranslationOverride;
 
-/** Names the fixed historical override source; reviewed metadata cannot choose a table. @internal */
+/**
+ * Names the fixed historical override source; reviewed metadata cannot choose a table.
+ *
+ * @internal
+ */
 final readonly class LegacyTranslationAdoptionSource
 {
     /** Retain exact compiled native metadata. */

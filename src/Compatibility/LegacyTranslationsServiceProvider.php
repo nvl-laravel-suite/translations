@@ -13,7 +13,11 @@ use Nvl\Translations\Contracts\TenantTranslationRepository;
 use Nvl\Translations\Services\DatabaseTenantTranslationRepository;
 use Nvl\Translations\Tenancy\TranslationsResourceRegistrar;
 
-/** Contains temporary legacy registrations; it never grants native owner authority. @internal */
+/**
+ * Contains temporary legacy registrations; it never grants native owner authority.
+ *
+ * @internal
+ */
 final class LegacyTranslationsServiceProvider extends ServiceProvider
 {
     /** Register legacy metadata and lazy APIs behind their native-state guards. */

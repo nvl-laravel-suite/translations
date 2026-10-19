@@ -56,6 +56,16 @@
             "properties": [],
             "constants": []
         },
+        "Nvl\\Translations\\Actions\\ExportTranslationOverridesAction": {
+            "kind": "class",
+            "file": "src/Actions/ExportTranslationOverridesAction.php",
+            "methods": [
+                "__construct",
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
         "Nvl\\Translations\\Actions\\Sync\\ExportTranslationsAction": {
             "kind": "class",
             "file": "src/Actions/Sync/ExportTranslationsAction.php",
@@ -99,6 +109,15 @@
         "Nvl\\Translations\\Contracts\\ExportTenantTranslationsContract": {
             "kind": "interface",
             "file": "src/Contracts/ExportTenantTranslationsContract.php",
+            "methods": [
+                "execute"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Contracts\\ExportTranslationOverridesContract": {
+            "kind": "interface",
+            "file": "src/Contracts/ExportTranslationOverridesContract.php",
             "methods": [
                 "execute"
             ],
@@ -171,6 +190,17 @@
         "Nvl\\Translations\\Contracts\\TenantTranslationRepository": {
             "kind": "interface",
             "file": "src/Contracts/TenantTranslationRepository.php",
+            "methods": [
+                "forget",
+                "get",
+                "set"
+            ],
+            "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Contracts\\TranslationOverrideRepository": {
+            "kind": "interface",
+            "file": "src/Contracts/TranslationOverrideRepository.php",
             "methods": [
                 "forget",
                 "get",
@@ -266,6 +296,21 @@
                 "syncStatus",
                 "updatedAt",
                 "value"
+            ],
+            "constants": []
+        },
+        "Nvl\\Translations\\Data\\TranslationOverrideExportData": {
+            "kind": "class",
+            "file": "src/Data/TranslationOverrideExportData.php",
+            "methods": [
+                "__construct"
+            ],
+            "properties": [
+                "bytes",
+                "disk",
+                "owner",
+                "path",
+                "sha256"
             ],
             "constants": []
         },
@@ -592,6 +637,22 @@
             "properties": [],
             "constants": []
         },
+        "Nvl\\Translations\\Models\\TranslationOverride": {
+            "kind": "class",
+            "file": "src/Models/TranslationOverride.php",
+            "methods": [
+                "getKey",
+                "getKeyName",
+                "getMorphClass",
+                "getRouteKey",
+                "getRouteKeyName",
+                "is",
+                "isNot",
+                "relationLoaded"
+            ],
+            "properties": [],
+            "constants": []
+        },
         "Nvl\\Translations\\Models\\TranslationScanRun": {
             "kind": "class",
             "file": "src/Models/TranslationScanRun.php",
@@ -673,6 +734,20 @@
             ],
             "capability_relations": []
         },
+        "Nvl\\Translations\\Models\\TranslationOverride": {
+            "read": [],
+            "identity_methods": [
+                "getKey",
+                "getKeyName",
+                "getMorphClass",
+                "getRouteKey",
+                "getRouteKeyName",
+                "is",
+                "isNot",
+                "relationLoaded"
+            ],
+            "capability_relations": []
+        },
         "Nvl\\Translations\\Models\\TranslationScanRun": {
             "read": [
                 "id"
@@ -709,6 +784,7 @@
     "capability_relations": {},
     "tables": {
         "entries": "nvl_translations_entries",
+        "owner_overrides": "nvl_translations_overrides",
         "scan_runs": "nvl_translations_scan_runs",
         "tenant_overrides": "nvl_translations_tenant_overrides",
         "usages": "nvl_translations_usages"

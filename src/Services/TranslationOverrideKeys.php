@@ -8,7 +8,11 @@ use Illuminate\Contracts\Config\Repository;
 use Nvl\Support\Ownership\Exceptions\OwnershipConfigurationInvalid;
 use Nvl\Support\Ownership\Exceptions\OwnershipViolation;
 
-/** Validates a literal native override allowlist without opening source-file paths. @internal */
+/**
+ * Validates a literal native override allowlist without opening source-file paths.
+ *
+ * @internal
+ */
 final readonly class TranslationOverrideKeys
 {
     /** Read current application configuration without retaining admission. */

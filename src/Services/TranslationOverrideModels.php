@@ -10,7 +10,11 @@ use Nvl\Support\OwnerRegistry;
 use Nvl\Support\Ownership\Exceptions\OwnershipConfigurationInvalid;
 use Nvl\Translations\Models\TranslationOverride;
 
-/** Freezes the advertised override replacement before compiling resource identities. @internal */
+/**
+ * Freezes the advertised override replacement before compiling resource identities.
+ *
+ * @internal
+ */
 final class TranslationOverrideModels
 {
     /** @var class-string<TranslationOverride>|null */

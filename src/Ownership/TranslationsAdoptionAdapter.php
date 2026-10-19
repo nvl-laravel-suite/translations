@@ -20,7 +20,11 @@ use Nvl\Support\Ownership\Services\OwnershipResourceRegistry;
 use Nvl\Translations\Compatibility\LegacyTranslationAdoptionSource;
 use Nvl\Translations\Services\TranslationOverrideKeys;
 
-/** Stages reviewed override history while retaining the old tables and every original identity. @internal */
+/**
+ * Stages reviewed override history while retaining the old tables and every original identity.
+ *
+ * @internal
+ */
 final readonly class TranslationsAdoptionAdapter implements OwnershipAdoptionAdapter, OwnershipAdoptionSource
 {
     /** Retain bounded package schema and explicit reviewed mappings. */
