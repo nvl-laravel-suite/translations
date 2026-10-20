@@ -7,6 +7,10 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [6.0.0] - 2026-10-20
 
+### Release fixes
+
+- Include the existing native ownership default in published common configuration.
+
 ### Changed
 
 - Add native owner-local translation overrides, exact keys and revisions, reviewed copy adoption and owner-scoped reads/exports. Retain old overrides as provenance; source scanning and file mutation stay outside owner execution.
