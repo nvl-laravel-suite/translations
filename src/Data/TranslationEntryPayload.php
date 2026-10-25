@@ -14,9 +14,6 @@ use Spatie\LaravelData\Attributes\MapInputName;
 use Spatie\LaravelData\Attributes\MapOutputName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\CamelCaseMapper;
-use Spatie\TypeScriptTransformer\Attributes\LiteralTypeScriptType;
-use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Spatie\TypeScriptTransformer\Attributes\TypeScriptType;
 
 /**
  * Data transfer object for a translation entry row.
@@ -25,7 +22,6 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScriptType;
  */
 #[MapOutputName(CamelCaseMapper::class)]
 #[MapInputName(CamelCaseMapper::class)]
-#[TypeScript]
 final class TranslationEntryPayload extends Data
 {
     use DataTransform;
@@ -46,37 +42,21 @@ final class TranslationEntryPayload extends Data
      * @param  array<string, mixed>|null  $conflictMetadata  Synchronization conflict details
      */
     public function __construct(
-        #[LiteralTypeScriptType('string')]
         public readonly string $id,
-        #[TypeScriptType(TranslationScopeType::class)]
         public readonly TranslationScopeType $scopeType,
-        #[LiteralTypeScriptType('string')]
         public readonly string $scopeName,
-        #[LiteralTypeScriptType('string')]
         public readonly string $locale,
-        #[TypeScriptType(TranslationFormat::class)]
         public readonly TranslationFormat $format,
-        #[LiteralTypeScriptType('string | null')]
         public readonly ?string $group,
-        #[LiteralTypeScriptType('string')]
         public readonly string $key,
-        #[LiteralTypeScriptType('string | null')]
         public readonly ?string $value,
-        #[LiteralTypeScriptType('boolean')]
         public readonly bool $isMissing,
-        #[LiteralTypeScriptType('number')]
         public readonly int $revision,
-        #[TypeScriptType(TranslationSyncStatus::class)]
         public readonly TranslationSyncStatus $syncStatus,
-        #[LiteralTypeScriptType('Record<string, unknown> | null')]
         public readonly ?array $conflictMetadata,
-        #[LiteralTypeScriptType('string | null')]
         public readonly ?CarbonImmutable $lastImportedAt,
-        #[LiteralTypeScriptType('string | null')]
         public readonly ?CarbonImmutable $lastExportedAt,
-        #[LiteralTypeScriptType('string')]
         public readonly CarbonImmutable $createdAt,
-        #[LiteralTypeScriptType('string')]
         public readonly CarbonImmutable $updatedAt,
     ) {}
 

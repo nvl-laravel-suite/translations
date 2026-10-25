@@ -9,11 +9,8 @@ use Illuminate\Validation\Validator;
 use Nvl\Data\Traits\DataTransform;
 use Nvl\Translations\Rules\StringOrList;
 use Spatie\LaravelData\Data;
-use Spatie\TypeScriptTransformer\Attributes\LiteralTypeScriptType;
-use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 /** Validated workspace-to-file export options. */
-#[TypeScript]
 final class ExportTranslationsData extends Data
 {
     use DataTransform;
@@ -23,9 +20,7 @@ final class ExportTranslationsData extends Data
      * @param  array<array-key, mixed>|string|null  $locales
      */
     public function __construct(
-        #[LiteralTypeScriptType('string | string[] | null')]
         public readonly string|array|null $scope = null,
-        #[LiteralTypeScriptType('string | string[] | null')]
         public readonly string|array|null $locales = null,
         public readonly ?string $format = null,
         public readonly ?string $target = null,

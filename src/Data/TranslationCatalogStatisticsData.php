@@ -10,8 +10,6 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\CamelCaseMapper;
 use Spatie\LaravelData\Support\Transformation\TransformationContext;
 use Spatie\LaravelData\Support\Transformation\TransformationContextFactory;
-use Spatie\TypeScriptTransformer\Attributes\LiteralTypeScriptType;
-use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 /**
  * Authorized bounded health projection for one filtered translation catalog.
@@ -19,7 +17,6 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * @api
  */
 #[MapOutputName(CamelCaseMapper::class)]
-#[TypeScript]
 final class TranslationCatalogStatisticsData extends Data
 {
     use DataTransform;
@@ -33,11 +30,9 @@ final class TranslationCatalogStatisticsData extends Data
     public readonly int $changed;
 
     /** @var array<string, int> */
-    #[LiteralTypeScriptType('Record<string, number>')]
     public readonly array $locales;
 
     /** @var array<string, int> */
-    #[LiteralTypeScriptType('Record<string, number>')]
     public readonly array $scopes;
 
     /**

@@ -9,8 +9,6 @@ use Spatie\LaravelData\Attributes\MapInputName;
 use Spatie\LaravelData\Attributes\MapOutputName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\CamelCaseMapper;
-use Spatie\TypeScriptTransformer\Attributes\LiteralTypeScriptType;
-use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 /**
  * Update payload for translation values.
@@ -19,7 +17,6 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  */
 #[MapOutputName(CamelCaseMapper::class)]
 #[MapInputName(CamelCaseMapper::class)]
-#[TypeScript]
 final class UpdateTranslationEntryPayload extends Data
 {
     use DataTransform;
@@ -28,9 +25,7 @@ final class UpdateTranslationEntryPayload extends Data
      * @param  string|null  $value  New translation value
      */
     public function __construct(
-        #[LiteralTypeScriptType('string | null')]
         public readonly ?string $value,
-        #[LiteralTypeScriptType('number')]
         public readonly int $expectedRevision,
     ) {}
 

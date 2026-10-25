@@ -8,11 +8,9 @@ use Nvl\Data\Traits\DataTransform;
 use Spatie\LaravelData\Attributes\MapInputName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
-use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 /** Validated translation catalog query. */
 #[MapInputName(SnakeCaseMapper::class)]
-#[TypeScript]
 final class TranslationIndexQueryData extends Data
 {
     use DataTransform;
