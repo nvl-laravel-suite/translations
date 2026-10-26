@@ -15,7 +15,11 @@ use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Models\TranslationEntry;
 
-/** Keeps source-code catalog tooling outside owner execution and owner copy persistence. */
+/**
+ * Keeps source-code catalog tooling outside owner execution and owner copy persistence.
+ *
+ * @internal
+ */
 final readonly class SourceTranslationWorkspace
 {
     /** Resolve current native state at each operation and admit the unowned source workspace. */

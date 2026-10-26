@@ -18,6 +18,8 @@ use Throwable;
  * @phpstan-type ArtifactWrite array{path:string,content:string,target_root:string}
  * @phpstan-type ArtifactDelete array{path:string,target_root:string}
  * @phpstan-type OriginalFile array{exists:bool,content:string|null,permissions:int|null}
+ *
+ * @internal
  */
 final class TranslationArtifactWriter
 {

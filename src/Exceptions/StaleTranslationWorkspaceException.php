@@ -6,7 +6,7 @@ namespace Nvl\Translations\Exceptions;
 
 /**
  * @api
-
+ *
  * Raised when an editor attempts to overwrite a newer workspace revision.
  */
 final class StaleTranslationWorkspaceException extends TranslationsException

@@ -114,7 +114,7 @@ JSON);
         $phpEntry,
         [
             'value' => 'Save changes',
-            'expectedRevision' => $phpEntry->revision,
+            'expected_revision' => $phpEntry->revision,
         ],
     );
 
@@ -298,7 +298,7 @@ test('workspace edits require the current optimistic revision', function (): voi
         $entry,
         [
             'value' => 'Save changes',
-            'expectedRevision' => $revision,
+            'expected_revision' => $revision,
         ],
     );
 
@@ -308,7 +308,7 @@ test('workspace edits require the current optimistic revision', function (): voi
             $updated,
             [
                 'value' => 'Overwrite',
-                'expectedRevision' => $revision,
+                'expected_revision' => $revision,
             ],
         ))->toThrow(StaleTranslationWorkspaceException::class);
 });
@@ -343,7 +343,7 @@ test('conflicts fail safely and explicit strategies retain conflict metadata', f
         $entry,
         [
             'value' => 'Database edit',
-            'expectedRevision' => $entry->revision,
+            'expected_revision' => $entry->revision,
         ],
     );
     File::put($this->translationSource.'/en.json', '{"Save":"File edit"}');
@@ -390,7 +390,7 @@ test('export re-reads authoritative files and creates replacement backups', func
         $entry,
         [
             'value' => 'Database replacement',
-            'expectedRevision' => $entry->revision,
+            'expected_revision' => $entry->revision,
         ],
     );
     config()->set('nvl-translations.import.conflict_strategy', 'prefer_database');
@@ -453,11 +453,11 @@ test('native catalog mutations preserve explicit null and reject protected field
     app(TranslationImporter::class)->import($actor, ['app'], 'json');
     $entry = TranslationEntry::query()->sole();
     $catalog = app(TranslationCatalog::class);
-    expect(fn () => $catalog->update($actor, $entry, ['value' => 'Changed', 'expectedRevision' => $entry->revision, 'locale' => 'bg']))
+    expect(fn () => $catalog->update($actor, $entry, ['value' => 'Changed', 'expected_revision' => $entry->revision, 'locale' => 'bg']))
         ->toThrow(InvalidTranslationInputException::class);
-    expect(fn () => $catalog->update($actor, $entry, ['expectedRevision' => $entry->revision]))
+    expect(fn () => $catalog->update($actor, $entry, ['expected_revision' => $entry->revision]))
         ->toThrow(InvalidTranslationInputException::class);
-    expect($catalog->update($actor, $entry, ['value' => null, 'expectedRevision' => $entry->revision])->value)->toBeNull();
+    expect($catalog->update($actor, $entry, ['value' => null, 'expected_revision' => $entry->revision])->value)->toBeNull();
     $transient = new class extends User {};
     expect(fn () => $catalog->paginate($transient))->toThrow(AuthorizationException::class);
 });

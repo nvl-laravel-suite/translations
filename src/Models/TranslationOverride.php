@@ -15,7 +15,9 @@ use Nvl\Support\Ownership\ValueObjects\OwnershipDefinition;
 use Nvl\Translations\Database\Factories\TranslationOverrideFactory;
 use Nvl\Translations\Definitions\Tables\TranslationsTables;
 
-/** One literal owner-specific copy override, separate from the source catalog.
+/**
+ * One literal owner-specific copy override, separate from the source catalog.
+ *
  * @api
  *
  * @property string $id
@@ -67,7 +69,9 @@ class TranslationOverride extends Model implements Ownable
         return ['revision' => 'integer', 'created_at' => 'immutable_datetime', 'updated_at' => 'immutable_datetime'];
     }
 
-    /** Resolve the fixture factory through the advertised configured model.
+    /**
+     * Resolve the fixture factory through the advertised configured model.
+     *
      * @internal
      */
     protected static function newFactory(): TranslationOverrideFactory

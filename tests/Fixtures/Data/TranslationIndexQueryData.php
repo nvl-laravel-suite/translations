@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nvl\Translations\Tests\Fixtures\Data;
 
 use Spatie\LaravelData\Attributes\MapInputName;
+use Spatie\LaravelData\Attributes\MapOutputName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
@@ -14,7 +15,7 @@ final class TranslationIndexQueryData extends Data
 {
     /** @param array<string, mixed>|null $filter */
     public function __construct(
-        public readonly ?int $perPage = null,
+        #[MapInputName('per_page')] #[MapOutputName('per_page')] public readonly ?int $perPage = null,
         public readonly ?int $limit = null,
         public readonly ?array $filter = null,
         public readonly mixed $sort = null,

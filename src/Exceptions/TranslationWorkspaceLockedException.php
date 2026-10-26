@@ -6,7 +6,7 @@ namespace Nvl\Translations\Exceptions;
 
 /**
  * @api
-
+ *
  * Raised when another synchronization process owns the workspace lock.
  */
 final class TranslationWorkspaceLockedException extends TranslationsException

@@ -265,7 +265,7 @@ test('workspace edits share the synchronization lock', function (): void {
             $entry,
             [
                 'value' => 'Blocked',
-                'expectedRevision' => $entry->revision,
+                'expected_revision' => $entry->revision,
             ],
         ))->toThrow(TranslationWorkspaceLockedException::class);
     } finally {
@@ -370,7 +370,7 @@ test('changed-since-import follows durable synchronization state after preserved
         $entry,
         [
             'value' => 'Database edit',
-            'expectedRevision' => $entry->revision,
+            'expected_revision' => $entry->revision,
         ],
     );
     app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
@@ -388,7 +388,7 @@ test('changed-since-import follows durable synchronization state after preserved
         $entry->fresh(),
         [
             'value' => 'Save',
-            'expectedRevision' => $updated->fresh()->revision,
+            'expected_revision' => $updated->fresh()->revision,
         ],
     );
 
@@ -533,7 +533,7 @@ test('prefer strategies resolve conflicts without a failing command exit code', 
         $entry,
         [
             'value' => 'Database edit',
-            'expectedRevision' => $entry->revision,
+            'expected_revision' => $entry->revision,
         ],
     );
     File::put($this->catalogSource.'/en.json', '{"Save":"File edit"}');

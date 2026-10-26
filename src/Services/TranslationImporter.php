@@ -37,28 +37,28 @@ use Throwable;
  * programmatic callers receive the same all-or-nothing guarantees.
  *
  * @phpstan-type TranslationRow array{
- *     id:string,
- *     identity_hash:string,
- *     scope_type:string,
- *     scope_name:string,
- *     locale:string,
- *     format:string,
- *     group:string,
- *     key:string,
- *     value:string|null,
- *     source_hash:string,
- *     is_missing:bool,
- *     last_imported_at:CarbonImmutable,
- *     revision:int,
- *     sync_status:string,
- *     conflict_metadata:string|null,
- *     created_at:CarbonImmutable,
- *     updated_at:CarbonImmutable
+ * id:string,
+ * identity_hash:string,
+ * scope_type:string,
+ * scope_name:string,
+ * locale:string,
+ * format:string,
+ * group:string,
+ * key:string,
+ * value:string|null,
+ * source_hash:string,
+ * is_missing:bool,
+ * last_imported_at:CarbonImmutable,
+ * revision:int,
+ * sync_status:string,
+ * conflict_metadata:string|null,
+ * created_at:CarbonImmutable,
+ * updated_at:CarbonImmutable
  * }
  * @phpstan-type ParsedScope array{
- *     files:int,
- *     rows:array<string, TranslationRow>,
- *     warnings:list<string>
+ * files:int,
+ * rows:array<string, TranslationRow>,
+ * warnings:list<string>
  * }
  */
 final class TranslationImporter
@@ -91,15 +91,15 @@ final class TranslationImporter
      *
      * @param  list<string>  $scopeTokens
      * @return array{
-     *     scopes:int,
-     *     files:int,
-     *     entries:int,
-     *     created:int,
-     *     updated:int,
-     *     preserved:int,
-     *     conflicts:int,
-     *     missing:int,
-     *     warnings:list<string>
+     * scopes:int,
+     * files:int,
+     * entries:int,
+     * created:int,
+     * updated:int,
+     * preserved:int,
+     * conflicts:int,
+     * missing:int,
+     * warnings:list<string>
      * }
      */
     public function synchronize(

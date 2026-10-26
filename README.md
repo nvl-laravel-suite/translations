@@ -12,7 +12,7 @@ $artifacts = $exporter->export($actor, ['app'], ['en'], 'both', 'generated');
 $paths = $artifacts['paths'];
 $scan = $scanner->scan($actor);
 $page = $catalog->paginate($actor, ['locale' => 'en', 'sort' => ['key']], 25);
-$entry = $catalog->update($actor, $entry, ['value' => null, 'expectedRevision' => $entry->revision]);
+$entry = $catalog->update($actor, $entry, ['value' => null, 'expected_revision' => $entry->revision]);
 $statistics = $catalog->statistics($actor, ['is_missing' => true]);
 $unused = $catalog->unused($actor, ['app'], days: 30);
 ```

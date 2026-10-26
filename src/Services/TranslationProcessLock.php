@@ -15,6 +15,8 @@ use Nvl\Translations\Support\TranslationConfiguration;
 
 /**
  * Serializes workspace import, export, prune, and scan operations.
+ *
+ * @internal
  */
 final class TranslationProcessLock
 {

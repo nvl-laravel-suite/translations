@@ -14,6 +14,8 @@ use Nvl\Translations\Models\TranslationEntry;
 
 /**
  * Gate-backed default that denies access until a consumer opts in.
+ *
+ * @internal
  */
 final class ConfiguredTranslationsAuthorization implements TranslationsAuthorization
 {

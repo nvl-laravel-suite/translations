@@ -6,7 +6,7 @@ namespace Nvl\Translations\Exceptions;
 
 /**
  * @api
-
+ *
  * Raised when both the authoritative file and editable database value changed.
  */
 final class TranslationConflictException extends TranslationsException

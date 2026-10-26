@@ -26,7 +26,9 @@ use Nvl\Translations\Models\TranslationUsage;
 use Nvl\Translations\Support\TranslationScope;
 use Nvl\Translations\Support\TranslationValueHash;
 
-/** Authorized catalog queries and revision-checked edits.
+/**
+ * Authorized catalog queries and revision-checked edits.
+ *
  * @api
  */
 final class TranslationCatalog
@@ -52,7 +54,7 @@ final class TranslationCatalog
         return $this->totals($query) + ['locales' => $this->locales($query), 'scopes' => $this->scopes($query)];
     }
 
-    /** @param array{value:string|null,expectedRevision:int} $data */
+    /** @param array{value:string|null,expected_revision:int} $data */
     public function update(Authenticatable|SystemActor $actor, TranslationEntry|string $entry, array $data): TranslationEntry
     {
         $this->workspace->authorize($actor, TranslationsAbility::UpdateEntry, $entry instanceof TranslationEntry ? $entry : null);
@@ -70,7 +72,7 @@ final class TranslationCatalog
                     ->findOrFail($entryId);
                 $this->workspace->authorize($actor, TranslationsAbility::UpdateEntry, $model);
 
-                if ($model->revision !== $data['expectedRevision']) {
+                if ($model->revision !== $data['expected_revision']) {
                     throw StaleTranslationWorkspaceException::forEntry($model->id);
                 }
 
@@ -106,18 +108,18 @@ final class TranslationCatalog
 
     /**
      * @param  array<array-key, mixed>  $data
-     * @return array{value: string|null, expectedRevision: int}
+     * @return array{value: string|null, expected_revision: int}
      */
     private function validatedUpdate(array $data): array
     {
-        if (array_diff(array_keys($data), ['value', 'expectedRevision']) !== [] || ! array_key_exists('value', $data) || ($data['value'] !== null && ! is_string($data['value'])) || ! isset($data['expectedRevision']) || ! is_int($data['expectedRevision']) || $data['expectedRevision'] < 1) {
-            throw new InvalidTranslationInputException('A nullable string value and positive integer expectedRevision are required.');
+        if (array_diff(array_keys($data), ['value', 'expected_revision']) !== [] || ! array_key_exists('value', $data) || ($data['value'] !== null && ! is_string($data['value'])) || ! isset($data['expected_revision']) || ! is_int($data['expected_revision']) || $data['expected_revision'] < 1) {
+            throw new InvalidTranslationInputException('A nullable string value and positive integer expected_revision are required.');
         }
         if ($data['value'] !== null && ! mb_check_encoding($data['value'], 'UTF-8')) {
             throw new InvalidTranslationInputException('Translation values must contain valid UTF-8 text.');
         }
 
-        return ['value' => $data['value'], 'expectedRevision' => $data['expectedRevision']];
+        return ['value' => $data['value'], 'expected_revision' => $data['expected_revision']];
     }
 
     /**

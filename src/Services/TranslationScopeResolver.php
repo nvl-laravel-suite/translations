@@ -12,6 +12,8 @@ use Nvl\Translations\Support\TranslationScope;
 
 /**
  * Resolves trusted translation source scopes and named export destinations.
+ *
+ * @internal
  */
 final class TranslationScopeResolver
 {

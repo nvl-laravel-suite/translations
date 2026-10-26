@@ -319,7 +319,6 @@
             "kind": "class",
             "file": "src/Models/TranslationOverride.php",
             "methods": [
-                "bootHasOwnership",
                 "delete",
                 "fresh",
                 "getConnectionName",

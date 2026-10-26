@@ -64,7 +64,7 @@ test('management API lists a bounded filterable catalog with stable option shape
     $this->getJson('/nvl/api/v1/translations?per_page=1&filter[locale]=en&sort=key')
         ->assertSuccessful()
         ->assertJsonPath('data.entries.items.0.key', 'Alpha')
-        ->assertJsonPath('data.entries.meta.perPage', 1)
+        ->assertJsonPath('data.entries.meta.per_page', 1)
         ->assertJsonPath('data.entries.meta.total', 2)
         ->assertJsonPath('data.scopeTypes', ['app'])
         ->assertJsonPath('data.scopeNames', ['app'])
@@ -127,7 +127,7 @@ test('management API exposes stable conflict and lock response codes', function 
 
     $response = $this->patchJson("/nvl/api/v1/translations/entries/{$entry->id}", [
         'value' => 'Stale',
-        'expectedRevision' => $entry->revision + 1,
+        'expected_revision' => $entry->revision + 1,
     ]);
     $response->assertConflict()
         ->assertJsonPath('code', 'stale_translation_workspace');
@@ -175,7 +175,7 @@ test('management API rejects ambiguous lists, oversized tokens, and missing upda
     $entry = TranslationEntry::query()->sole();
 
     $this->patchJson("/nvl/api/v1/translations/entries/{$entry->id}", [
-        'expectedRevision' => $entry->revision,
+        'expected_revision' => $entry->revision,
     ])->assertUnprocessable()
         ->assertJsonValidationErrors(['value']);
 });

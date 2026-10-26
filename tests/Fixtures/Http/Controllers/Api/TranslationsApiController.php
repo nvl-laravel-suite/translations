@@ -28,7 +28,7 @@ final class TranslationsApiController extends Controller
     public function index(Request $request, TranslationCatalog $catalog, TranslationFilterOptions $options): JsonResponse
     {
         $input = $request->query();
-        $input['per_page'] ??= $input['perPage'] ?? 25;
+        $input['per_page'] ??= $input['per_page'] ?? 25;
         $query = TranslationIndexQueryData::validateAndCreate($input);
         $filters = $input['filter'] ?? [];
         if (! is_array($filters)) {
@@ -53,13 +53,13 @@ final class TranslationsApiController extends Controller
 
         return response()->json(['data' => ['entries' => [
             'items' => array_map(static fn (TranslationEntry $entry): array => TranslationEntryPayload::fromModel($entry)->toArray(), $entries->items()),
-            'meta' => ['currentPage' => $entries->currentPage(), 'perPage' => $entries->perPage(), 'total' => $entries->total(), 'lastPage' => $entries->lastPage()],
+            'meta' => ['currentPage' => $entries->currentPage(), 'per_page' => $entries->perPage(), 'total' => $entries->total(), 'lastPage' => $entries->lastPage()],
         ], ...$options->execute()]]);
     }
 
     public function update(TranslationEntry $entry, UpdateTranslationEntryPayload $data, TranslationCatalog $catalog): JsonResponse
     {
-        $updated = $catalog->update(SystemActor::Background, $entry, ['value' => $data->value, 'expectedRevision' => $data->expectedRevision]);
+        $updated = $catalog->update(SystemActor::Background, $entry, ['value' => $data->value, 'expected_revision' => $data->expectedRevision]);
 
         return response()->json(['data' => TranslationEntryPayload::fromModel($updated)->toArray(), 'code' => TranslationsResponseCode::Updated->value]);
     }

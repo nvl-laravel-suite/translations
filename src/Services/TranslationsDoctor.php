@@ -20,6 +20,8 @@ use Throwable;
 
 /**
  * Inspects workspace schema, profiles, and bindings without mutation.
+ *
+ * @internal
  */
 final readonly class TranslationsDoctor
 {

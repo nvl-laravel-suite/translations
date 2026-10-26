@@ -23,7 +23,7 @@ final class UpdateTranslationEntryPayload extends Data
      */
     public function __construct(
         public readonly ?string $value,
-        public readonly int $expectedRevision,
+        #[MapInputName('expected_revision')] #[MapOutputName('expected_revision')] public readonly int $expectedRevision,
     ) {}
 
     /**
@@ -35,7 +35,7 @@ final class UpdateTranslationEntryPayload extends Data
     {
         return [
             'value' => ['required', 'nullable', 'string'],
-            'expectedRevision' => ['required', 'integer', 'min:1'],
+            'expected_revision' => ['required', 'integer', 'min:1'],
         ];
     }
 

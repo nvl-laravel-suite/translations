@@ -31,11 +31,11 @@ use Nvl\Translations\Support\TranslationValueHash;
  * @phpstan-type ArtifactWrite array{path:string,content:string,target_root:string}
  * @phpstan-type ArtifactDelete array{path:string,target_root:string}
  * @phpstan-type CompiledArtifacts array{
- *     written:int,
- *     deleted:int,
- *     writes:list<ArtifactWrite>,
- *     deletes:list<ArtifactDelete>,
- *     rows:Collection<int, TranslationEntry>
+ * written:int,
+ * deleted:int,
+ * writes:list<ArtifactWrite>,
+ * deletes:list<ArtifactDelete>,
+ * rows:Collection<int, TranslationEntry>
  * }
  */
 final class TranslationExporter

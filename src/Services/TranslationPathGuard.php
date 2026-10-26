@@ -9,6 +9,8 @@ use Nvl\Translations\Exceptions\TranslationsException;
 
 /**
  * Validates configured roots and constructs safe translation file paths.
+ *
+ * @internal
  */
 final class TranslationPathGuard
 {
