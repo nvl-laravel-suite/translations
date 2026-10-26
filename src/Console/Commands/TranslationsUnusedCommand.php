@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Nvl\Translations\Console\Commands;
 
 use Illuminate\Console\Command;
-use Nvl\Translations\Actions\Sync\ListUnusedTranslationsAction;
+use Nvl\Support\Enums\SystemActor;
+use Nvl\Translations\Services\TranslationCatalog;
 
 /**
  * Report entries that are not used in the latest scan window.
@@ -28,7 +29,7 @@ final class TranslationsUnusedCommand extends Command
     /**
      * Execute the command.
      */
-    public function handle(ListUnusedTranslationsAction $action): int
+    public function handle(TranslationCatalog $action): int
     {
         /** @var list<string> $scopes */
         $scopes = array_values(array_filter((array) $this->option('scope'), static fn (mixed $value): bool => is_string($value) && trim($value) !== ''));
@@ -55,7 +56,7 @@ final class TranslationsUnusedCommand extends Command
             return self::FAILURE;
         }
 
-        $result = $action->execute($scopes, $days);
+        $result = $action->unused(SystemActor::Background, $scopes, $days);
 
         $this->info(sprintf('Unused entries: %d', $result['total']));
 

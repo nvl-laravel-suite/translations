@@ -17,7 +17,6 @@ use Nvl\Support\Ownership\Exceptions\OwnershipConfigurationInvalid;
 use Nvl\Support\Ownership\Exceptions\OwnershipSchemaNotReady;
 use Nvl\Support\Ownership\Services\OwnershipConstraintInspector;
 use Nvl\Support\Ownership\Services\OwnershipResourceRegistry;
-use Nvl\Translations\Compatibility\LegacyTranslationAdoptionSource;
 use Nvl\Translations\Services\TranslationOverrideKeys;
 
 /**
@@ -28,7 +27,7 @@ use Nvl\Translations\Services\TranslationOverrideKeys;
 final readonly class TranslationsAdoptionAdapter implements OwnershipAdoptionAdapter, OwnershipAdoptionSource
 {
     /** Retain bounded package schema and explicit reviewed mappings. */
-    public function __construct(private OwnershipResourceRegistry $resources, private OwnershipAdoptionStore $mappings, private OwnershipSchema $schema, private LegacyTranslationAdoptionSource $sources, private TranslationOverrideKeys $keys, private OwnershipConstraintInspector $constraints) {}
+    public function __construct(private OwnershipResourceRegistry $resources, private OwnershipAdoptionStore $mappings, private OwnershipSchema $schema, private TranslationOverrideKeys $keys, private OwnershipConstraintInspector $constraints) {}
 
     /** @return list<string> */
     public function resources(): array
@@ -43,7 +42,7 @@ final readonly class TranslationsAdoptionAdapter implements OwnershipAdoptionAda
             throw new OwnershipConfigurationInvalid('Unknown translation adoption resource.');
         }
 
-        return $this->sources->source();
+        return new ($this->resources->get('translations.overrides')->model);
     }
 
     /** Prepare additive native storage without rewriting historical tenant schema. */

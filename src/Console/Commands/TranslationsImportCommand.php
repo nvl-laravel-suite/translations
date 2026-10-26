@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Nvl\Translations\Console\Commands;
 
 use Illuminate\Console\Command;
-use Nvl\Translations\Actions\Sync\ImportTranslationsAction;
+use Nvl\Support\Enums\SystemActor;
+use Nvl\Translations\Services\TranslationImporter;
 
 /**
  * Import translation files into translation_entries.
@@ -30,7 +31,7 @@ final class TranslationsImportCommand extends Command
     /**
      * Execute the command.
      */
-    public function handle(ImportTranslationsAction $action): int
+    public function handle(TranslationImporter $action): int
     {
         /** @var list<string> $scopes */
         $scopes = array_values(array_filter((array) $this->option('scope'), static fn (mixed $value): bool => is_string($value) && trim($value) !== ''));
@@ -75,7 +76,7 @@ final class TranslationsImportCommand extends Command
         }
 
         $dryRun = (bool) $this->option('dry-run');
-        $result = $action->execute($scopes, $format, $dryRun);
+        $result = $action->import(SystemActor::Background, $scopes, $format, $dryRun);
 
         if ($output === 'json') {
             $this->line((string) json_encode(

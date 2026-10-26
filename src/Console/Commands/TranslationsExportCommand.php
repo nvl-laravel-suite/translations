@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Nvl\Translations\Console\Commands;
 
 use Illuminate\Console\Command;
-use Nvl\Translations\Actions\Sync\ExportTranslationsAction;
+use Nvl\Support\Enums\SystemActor;
+use Nvl\Translations\Services\TranslationExporter;
 
 /**
  * Export translation_entries back to translation files.
@@ -33,7 +34,7 @@ final class TranslationsExportCommand extends Command
     /**
      * Execute the command.
      */
-    public function handle(ExportTranslationsAction $action): int
+    public function handle(TranslationExporter $action): int
     {
         /** @var list<string> $scopes */
         $scopes = array_values(array_filter((array) $this->option('scope'), static fn (mixed $value): bool => is_string($value) && trim($value) !== ''));
@@ -74,7 +75,7 @@ final class TranslationsExportCommand extends Command
             return self::FAILURE;
         }
 
-        $result = $action->execute(
+        $result = $action->export(SystemActor::Background,
             $scopes,
             $locales,
             $format,

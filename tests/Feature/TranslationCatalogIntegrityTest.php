@@ -5,19 +5,17 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-use Nvl\Translations\Actions\Entries\UpdateTranslationEntryAction;
-use Nvl\Translations\Actions\Sync\ExportTranslationsAction;
-use Nvl\Translations\Actions\Sync\ImportTranslationsAction;
-use Nvl\Translations\Actions\Sync\ListUnusedTranslationsAction;
-use Nvl\Translations\Actions\Sync\ScanTranslationsAction;
-use Nvl\Translations\Data\UpdateTranslationEntryPayload;
+use Nvl\Support\Enums\SystemActor;
 use Nvl\Translations\Exceptions\TranslationsException;
 use Nvl\Translations\Exceptions\TranslationWorkspaceLockedException;
 use Nvl\Translations\Models\TranslationEntry;
 use Nvl\Translations\Models\TranslationScanRun;
 use Nvl\Translations\Models\TranslationUsage;
 use Nvl\Translations\Services\TranslationArtifactWriter;
-use Nvl\Translations\Services\TranslationExportService;
+use Nvl\Translations\Services\TranslationCatalog;
+use Nvl\Translations\Services\TranslationExporter;
+use Nvl\Translations\Services\TranslationImporter;
+use Nvl\Translations\Services\TranslationScanner;
 use Nvl\Translations\Services\TranslationScopeResolver;
 
 beforeEach(function (): void {
@@ -57,8 +55,8 @@ test('null values round trip exactly through PHP and JSON artifacts', function (
     );
     File::put($this->catalogSource.'/en.json', '{"Nullable":null}');
 
-    app(ImportTranslationsAction::class)->execute(['app']);
-    app(ExportTranslationsAction::class)->execute(['app'], null, 'both', 'generated');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app']);
+    app(TranslationExporter::class)->export(SystemActor::Background, ['app'], null, 'both', 'generated');
 
     $php = include $this->catalogTarget.'/en/messages.php';
     $json = json_decode(
@@ -76,7 +74,7 @@ test('null values round trip exactly through PHP and JSON artifacts', function (
 test('non-string translation leaves are rejected instead of being coerced', function (): void {
     File::put($this->catalogSource.'/en.json', '{"Count":5,"Enabled":true}');
 
-    expect(fn () => app(ImportTranslationsAction::class)->execute(['app'], 'json'))
+    expect(fn () => app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json'))
         ->toThrow(TranslationsException::class, 'non-string translation')
         ->and(TranslationEntry::query()->count())->toBe(0);
 });
@@ -88,7 +86,7 @@ test('PHP import rejects ambiguous dot segments and prevents source output leaka
         "<?php\n\necho 'leak';\n\nreturn ['literal.dot' => 'Value'];\n",
     );
 
-    expect(fn () => app(ImportTranslationsAction::class)->execute(['app'], 'php'))
+    expect(fn () => app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'php'))
         ->toThrow(TranslationsException::class, 'emitted output')
         ->and(TranslationEntry::query()->count())->toBe(0);
 
@@ -97,7 +95,7 @@ test('PHP import rejects ambiguous dot segments and prevents source output leaka
         "<?php\n\nreturn ['literal.dot' => 'Value'];\n",
     );
 
-    expect(fn () => app(ImportTranslationsAction::class)->execute(['app'], 'php'))
+    expect(fn () => app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'php'))
         ->toThrow(TranslationsException::class, 'ambiguous PHP translation key segment')
         ->and(TranslationEntry::query()->count())->toBe(0);
 
@@ -106,7 +104,7 @@ test('PHP import rejects ambiguous dot segments and prevents source output leaka
         "<?php\n\nob_start();\n\nreturn ['safe' => 'Value'];\n",
     );
 
-    expect(fn () => app(ImportTranslationsAction::class)->execute(['app'], 'php'))
+    expect(fn () => app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'php'))
         ->toThrow(TranslationsException::class, 'altered output buffering')
         ->and(TranslationEntry::query()->count())->toBe(0);
 });
@@ -125,8 +123,8 @@ test('catalog identity preserves long case-sensitive and Unicode JSON keys', fun
         json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
     );
 
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
-    app(ExportTranslationsAction::class)->execute(['app'], null, 'json', 'generated');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
+    app(TranslationExporter::class)->export(SystemActor::Background, ['app'], null, 'json', 'generated');
 
     $exported = json_decode(
         (string) File::get($this->catalogTarget.'/en.json'),
@@ -146,7 +144,7 @@ test('catalog identity preserves long case-sensitive and Unicode JSON keys', fun
 test('export dry runs import current files inside a rolled-back simulation', function (): void {
     File::put($this->catalogSource.'/fr.json', '{"Continue":"Continuer"}');
 
-    $result = app(ExportTranslationsAction::class)->execute(
+    $result = app(TranslationExporter::class)->export(SystemActor::Background,
         ['app'],
         null,
         'json',
@@ -163,12 +161,12 @@ test('export dry runs import current files inside a rolled-back simulation', fun
 
 test('imports report source rows that became missing in dry-run and real modes', function (): void {
     File::put($this->catalogSource.'/en.json', '{"Save":"Save"}');
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
     File::delete($this->catalogSource.'/en.json');
 
-    $planned = app(ImportTranslationsAction::class)->execute(['app'], 'json', true);
-    $applied = app(ImportTranslationsAction::class)->execute(['app'], 'json');
-    $repeated = app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    $planned = app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json', true);
+    $applied = app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
+    $repeated = app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
 
     expect($planned['missing'])->toBe(1)
         ->and($applied['missing'])->toBe(1)
@@ -247,7 +245,7 @@ test('usage identity preserves distinct namespaces referenced on the same line',
         ],
     ]);
 
-    $result = app(ScanTranslationsAction::class)->execute();
+    $result = app(TranslationScanner::class)->scan(SystemActor::Background);
 
     expect($result['hits'])->toBe(2)
         ->and(TranslationUsage::query()->distinct()->count('identity_hash'))->toBe(2)
@@ -257,18 +255,18 @@ test('usage identity preserves distinct namespaces referenced on the same line',
 
 test('workspace edits share the synchronization lock', function (): void {
     File::put($this->catalogSource.'/en.json', '{"Save":"Save"}');
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
     $entry = TranslationEntry::query()->sole();
     $lock = cache()->lock('nvl:translations:workspace', 30);
     expect($lock->get())->toBeTrue();
 
     try {
-        expect(fn () => app(UpdateTranslationEntryAction::class)->execute(
+        expect(fn () => app(TranslationCatalog::class)->update(SystemActor::Background,
             $entry,
-            UpdateTranslationEntryPayload::validateAndCreate([
+            [
                 'value' => 'Blocked',
                 'expectedRevision' => $entry->revision,
-            ]),
+            ],
         ))->toThrow(TranslationWorkspaceLockedException::class);
     } finally {
         $lock->release();
@@ -301,7 +299,7 @@ JS);
         'last_seen_at' => CarbonImmutable::now()->subDays(40),
     ]);
 
-    $result = app(ScanTranslationsAction::class)->execute();
+    $result = app(TranslationScanner::class)->scan(SystemActor::Background);
 
     expect($result['hits'])->toBe(5)
         ->and(TranslationUsage::query()->where('scope_type', 'app')->count())->toBe(5)
@@ -312,7 +310,7 @@ JS);
 test('scanner rejects invalid patterns and symbolic-link file escapes', function (): void {
     config(['nvl-translations.scan.patterns' => ['/[/']]);
 
-    expect(fn () => app(ScanTranslationsAction::class)->execute())
+    expect(fn () => app(TranslationScanner::class)->scan(SystemActor::Background))
         ->toThrow(TranslationsException::class, 'Invalid translation scanner pattern');
 
     config(['nvl-translations.scan.patterns' => [
@@ -324,7 +322,7 @@ test('scanner rejects invalid patterns and symbolic-link file escapes', function
     File::put($outside, "<?php\n\n__('Outside');\n");
     symlink($outside, $codeRoot.'/Linked.php');
 
-    expect(fn () => app(ScanTranslationsAction::class)->execute())
+    expect(fn () => app(TranslationScanner::class)->scan(SystemActor::Background))
         ->toThrow(TranslationsException::class, 'symbolic link');
 });
 
@@ -348,16 +346,16 @@ test('latest zero-hit scans and usage formats drive exact unused reports', funct
         ]);
     }
 
-    app(ScanTranslationsAction::class)->execute();
-    $firstReport = app(ListUnusedTranslationsAction::class)->execute(['app']);
+    app(TranslationScanner::class)->scan(SystemActor::Background);
+    $firstReport = app(TranslationCatalog::class)->unused(SystemActor::Background, ['app']);
 
     expect($firstReport['total'])->toBe(1)
         ->and($firstReport['rows'][0]['format'])->toBe('json')
         ->and($firstReport['rows'][0]['full_key'])->toBe('messages.save');
 
     File::put($codeRoot.'/Example.php', "<?php\n\n// no translation calls\n");
-    app(ScanTranslationsAction::class)->execute();
-    $secondReport = app(ListUnusedTranslationsAction::class)->execute(['app']);
+    app(TranslationScanner::class)->scan(SystemActor::Background);
+    $secondReport = app(TranslationCatalog::class)->unused(SystemActor::Background, ['app']);
 
     expect(TranslationScanRun::query()->count())->toBe(2)
         ->and(TranslationScanRun::query()->latest('scanned_at')->firstOrFail()->hits)->toBe(0)
@@ -366,36 +364,36 @@ test('latest zero-hit scans and usage formats drive exact unused reports', funct
 
 test('changed-since-import follows durable synchronization state after preserved edits', function (): void {
     File::put($this->catalogSource.'/en.json', '{"Save":"Save"}');
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
     $entry = TranslationEntry::query()->sole();
-    $updated = app(UpdateTranslationEntryAction::class)->execute(
+    $updated = app(TranslationCatalog::class)->update(SystemActor::Background,
         $entry,
-        UpdateTranslationEntryPayload::validateAndCreate([
+        [
             'value' => 'Database edit',
             'expectedRevision' => $entry->revision,
-        ]),
+        ],
     );
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
 
-    $model = new TranslationEntry;
+    $model = app(TranslationCatalog::class);
     $changedIds = $model
-        ->filterChangedSinceImport(TranslationEntry::query(), true)
+        ->paginate(SystemActor::Background, ['changed_since_import' => true])->getCollection()
         ->pluck('id')
         ->all();
 
     expect($changedIds)->toContain($entry->id)
         ->and($entry->fresh()->sync_status->value)->toBe('edited');
 
-    app(UpdateTranslationEntryAction::class)->execute(
+    app(TranslationCatalog::class)->update(SystemActor::Background,
         $entry->fresh(),
-        UpdateTranslationEntryPayload::validateAndCreate([
+        [
             'value' => 'Save',
             'expectedRevision' => $updated->fresh()->revision,
-        ]),
+        ],
     );
 
     $unchangedIds = $model
-        ->filterChangedSinceImport(TranslationEntry::query(), false)
+        ->paginate(SystemActor::Background, ['changed_since_import' => false])->getCollection()
         ->pluck('id')
         ->all();
 
@@ -460,7 +458,7 @@ test('artifact plans reject case-insensitive destination collisions', function (
         ]);
     }
 
-    expect(fn () => app(TranslationExportService::class)->execute(
+    expect(fn () => (new ReflectionMethod(TranslationExporter::class, 'write'))->invoke(app(TranslationExporter::class),
         ['app'],
         null,
         'json',
@@ -488,7 +486,7 @@ test('PHP export rejects scalar and nested dot-key shape collisions', function (
         ]);
     }
 
-    expect(fn () => app(TranslationExportService::class)->execute(
+    expect(fn () => (new ReflectionMethod(TranslationExporter::class, 'write'))->invoke(app(TranslationExporter::class),
         ['app'],
         ['en'],
         'php',
@@ -518,7 +516,7 @@ test('PHP export rejects null leaf and nested dot-key shape collisions', functio
         ]);
     }
 
-    expect(fn () => app(TranslationExportService::class)->execute(
+    expect(fn () => (new ReflectionMethod(TranslationExporter::class, 'write'))->invoke(app(TranslationExporter::class),
         ['app'],
         ['en'],
         'php',
@@ -529,14 +527,14 @@ test('PHP export rejects null leaf and nested dot-key shape collisions', functio
 
 test('prefer strategies resolve conflicts without a failing command exit code', function (): void {
     File::put($this->catalogSource.'/en.json', '{"Save":"Save"}');
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
     $entry = TranslationEntry::query()->sole();
-    app(UpdateTranslationEntryAction::class)->execute(
+    app(TranslationCatalog::class)->update(SystemActor::Background,
         $entry,
-        UpdateTranslationEntryPayload::validateAndCreate([
+        [
             'value' => 'Database edit',
             'expectedRevision' => $entry->revision,
-        ]),
+        ],
     );
     File::put($this->catalogSource.'/en.json', '{"Save":"File edit"}');
 
@@ -552,11 +550,11 @@ test('prefer strategies resolve conflicts without a failing command exit code', 
 
 test('exports refuse to overwrite from an incomplete authoritative read', function (): void {
     File::put($this->catalogSource.'/en.json', '{"Save":"Save"}');
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
     File::put($this->catalogSource.'/en.json', '{"Save":');
     config()->set('nvl-translations.import.fail_on_error', false);
 
-    expect(fn () => app(ExportTranslationsAction::class)->execute(
+    expect(fn () => app(TranslationExporter::class)->export(SystemActor::Background,
         ['app'],
         null,
         'json',

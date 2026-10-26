@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Nvl\Translations\Console\Commands;
 
 use Illuminate\Console\Command;
-use Nvl\Translations\Actions\Sync\ScanTranslationsAction;
+use Nvl\Support\Enums\SystemActor;
+use Nvl\Translations\Services\TranslationScanner;
 
 /**
  * Scan source files for translation key usage.
@@ -25,9 +26,9 @@ final class TranslationsScanCommand extends Command
     /**
      * Execute the command.
      */
-    public function handle(ScanTranslationsAction $action): int
+    public function handle(TranslationScanner $action): int
     {
-        $result = $action->execute();
+        $result = $action->scan(SystemActor::Background);
 
         $this->info(sprintf(
             'Scanned %d files and captured %d usage hits at %s.',

@@ -2,33 +2,13 @@
 
 declare(strict_types=1);
 
-use Nvl\Support\Ownership\Services\OwnershipContextResolver;
-use Nvl\Support\Tenancy\Contracts\TenantContext;
-use Nvl\Support\Tenancy\Enums\TenantContextMode;
-use Nvl\Support\Tenancy\Exceptions\TenantBoundaryViolation;
-use Nvl\Support\Tenancy\ValueObjects\TenantContextSnapshot;
-use Nvl\Support\Tenancy\ValueObjects\TenantId;
-use Nvl\Translations\Actions\Entries\ListTranslationEntriesAction;
-use Nvl\Translations\Compatibility\LegacySourceTranslationWorkspace;
-use Nvl\Translations\Services\SourceTranslationWorkspace;
+use Illuminate\Auth\Access\AuthorizationException;
+use Nvl\Support\Enums\SystemActor;
+use Nvl\Translations\Contracts\TranslationsAuthorization;
+use Nvl\Translations\Services\ConfiguredTranslationsAuthorization;
+use Nvl\Translations\Services\TranslationCatalog;
 
-test('tenant cannot browse the source synchronization workspace', function (): void {
-    $tenant = new TenantId('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
-    $context = new class($tenant) implements TenantContext
-    {
-        public function __construct(private readonly TenantId $tenant) {}
-
-        public function snapshot(): TenantContextSnapshot
-        {
-            return new TenantContextSnapshot(TenantContextMode::Tenant, $this->tenant);
-        }
-
-        public function requireTenant(): TenantId
-        {
-            return $this->tenant;
-        }
-    };
-    $action = new ListTranslationEntriesAction(new SourceTranslationWorkspace(app(OwnershipContextResolver::class), new LegacySourceTranslationWorkspace($context)));
-
-    expect(fn () => $action->execute())->toThrow(TenantBoundaryViolation::class);
+test('source catalog denies a background actor without an explicit host grant', function (): void {
+    app()->bind(TranslationsAuthorization::class, ConfiguredTranslationsAuthorization::class);
+    expect(fn () => app(TranslationCatalog::class)->paginate(SystemActor::Background))->toThrow(AuthorizationException::class);
 });

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Nvl\Translations\Services;
 
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Gate;
+use Nvl\Support\Enums\SystemActor;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Models\TranslationEntry;
@@ -20,6 +22,7 @@ final class ConfiguredTranslationsAuthorization implements TranslationsAuthoriza
      */
     public function authorize(
         TranslationsAbility $ability,
+        Authenticatable|SystemActor $actor,
         ?TranslationEntry $entry = null,
     ): void {
         $configuredAbility = config('nvl-translations.authorization.ability');
@@ -36,6 +39,9 @@ final class ConfiguredTranslationsAuthorization implements TranslationsAuthoriza
             $arguments[] = $entry;
         }
 
-        Gate::authorize($configuredAbility, $arguments);
+        if ($actor instanceof SystemActor) {
+            throw new AuthorizationException('System translation operations require an explicit authorization binding.');
+        }
+        Gate::forUser($actor)->authorize($configuredAbility, $arguments);
     }
 }

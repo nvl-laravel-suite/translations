@@ -4,4 +4,4 @@ declare(strict_types=1);
 
 use Nvl\Translations\Tests\TestCase;
 
-uses(TestCase::class)->in('Feature', 'Tenancy');
+uses(TestCase::class)->in('Feature');

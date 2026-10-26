@@ -36,7 +36,7 @@ final class TranslationArtifactWriter
         $this->validatePlan($writes, $deletes);
         $originals = $this->captureOriginals($writes, $deletes);
         $temporaryPaths = [];
-        $backupBatch = CarbonImmutable::now()->format('Ymd_His_u').'-'.bin2hex(random_bytes(4));
+        $backupBatch = CarbonImmutable::now('UTC')->format('Ymd_His_u').'-'.bin2hex(random_bytes(4));
         $mutatedPaths = [];
 
         try {

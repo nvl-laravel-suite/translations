@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Tests;
 
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Nvl\Data\Providers\DataServiceProvider;
-use Nvl\Filterable\Providers\FilterableServiceProvider;
 use Nvl\Support\Providers\LocaleServiceProvider;
 use Nvl\Support\Providers\SupportServiceProvider;
+use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Providers\TranslationsServiceProvider;
+use Nvl\Translations\Tests\Fixtures\TranslationApiAuthorizationFake;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 /**
@@ -19,6 +21,13 @@ abstract class TestCase extends Orchestra
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        Relation::morphMap([], false);
+        parent::setUp();
+        $this->app->instance(TranslationsAuthorization::class, new TranslationApiAuthorizationFake);
+    }
+
     /**
      * @return list<class-string>
      */
@@ -27,7 +36,6 @@ abstract class TestCase extends Orchestra
         return [
             LocaleServiceProvider::class,
             DataServiceProvider::class,
-            FilterableServiceProvider::class,
             SupportServiceProvider::class,
             TranslationsServiceProvider::class,
         ];

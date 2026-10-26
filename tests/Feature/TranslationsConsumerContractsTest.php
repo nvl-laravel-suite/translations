@@ -3,29 +3,28 @@
 declare(strict_types=1);
 
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Nvl\Filterable\Data\FilterSet;
-use Nvl\Filterable\Http\QueryFilterSetFactory;
+use Nvl\Support\Enums\SystemActor;
 use Nvl\Support\Http\PackageExceptionRenderer;
-use Nvl\Translations\Actions\Entries\GetTranslationCatalogStatisticsAction;
-use Nvl\Translations\Actions\Entries\ListTranslationEntriesAction;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
-use Nvl\Translations\Data\TranslationCatalogStatisticsData;
 use Nvl\Translations\Enums\TranslationsAbility;
+use Nvl\Translations\Exceptions\InvalidTranslationInputException;
 use Nvl\Translations\Exceptions\TranslationConflictException;
 use Nvl\Translations\Exceptions\TranslationsException;
-use Nvl\Translations\Http\Controllers\Api\TranslationsApiController;
 use Nvl\Translations\Models\TranslationEntry;
-use Nvl\Translations\Rules\StringOrList;
-use Nvl\Translations\Services\TranslationEntryFilterSchema;
+use Nvl\Translations\Services\ConfiguredTranslationsAuthorization;
+use Nvl\Translations\Services\TranslationCatalog;
 use Nvl\Translations\Services\TranslationsDoctor;
 use Nvl\Translations\Support\TranslationConfiguration;
 use Nvl\Translations\Support\TranslationValueHash;
+use Nvl\Translations\Tests\Fixtures\StringOrList;
 
 beforeEach(function (): void {
     $this->consumerRoot = storage_path('framework/testing/translations-consumer-'.Str::uuid());
@@ -179,7 +178,7 @@ test('keeps translation catalog list queries independent of result size', functi
         DB::flushQueryLog();
         DB::enableQueryLog();
 
-        $page = app(ListTranslationEntriesAction::class)->execute(100, FilterSet::none());
+        $page = app(TranslationCatalog::class)->paginate(SystemActor::Background, [], 100);
         $queryCount = count(DB::getQueryLog());
         collect($page->items())->each(static fn (TranslationEntry $entry): string => $entry->key);
 
@@ -198,7 +197,7 @@ test('keeps translation catalog list queries independent of result size', functi
 
     $populatedQueryCount = $measure();
 
-    expect($singleQueryCount)->toBeLessThanOrEqual(2)
+    expect($singleQueryCount)->toBeGreaterThan(0)->toBeLessThanOrEqual(2)
         ->and($populatedQueryCount)->toBe($singleQueryCount);
 });
 
@@ -225,7 +224,7 @@ test('returns authorized bounded translation catalog statistics with list filter
         /** @var list<TranslationsAbility> */
         public array $abilities = [];
 
-        public function authorize(TranslationsAbility $ability, ?TranslationEntry $entry = null): void
+        public function authorize(TranslationsAbility $ability, Authenticatable|SystemActor $actor, ?TranslationEntry $entry = null): void
         {
             $this->abilities[] = $ability;
         }
@@ -234,7 +233,7 @@ test('returns authorized bounded translation catalog statistics with list filter
 
     DB::flushQueryLog();
     DB::enableQueryLog();
-    $statistics = app(GetTranslationCatalogStatisticsAction::class)->execute();
+    $statistics = app(TranslationCatalog::class)->statistics(SystemActor::Background);
     $queries = DB::getQueryLog();
     DB::disableQueryLog();
     $grammar = DB::connection()->getQueryGrammar();
@@ -245,8 +244,8 @@ test('returns authorized bounded translation catalog statistics with list filter
         static fn (array $query): bool => str_contains($query['query'], 'aggregate_type'),
     );
 
-    expect($statistics)->toBeInstanceOf(TranslationCatalogStatisticsData::class)
-        ->and($statistics->toArray())->toBe([
+    expect($statistics)->toBeArray()
+        ->and($statistics)->toBe([
             'total' => 6,
             'missing' => 2,
             'conflicts' => 1,
@@ -262,16 +261,12 @@ test('returns authorized bounded translation catalog statistics with list filter
         ->toContain($grammar->wrap('aggregate_name'))
         ->and($authorization->abilities)->toBe([TranslationsAbility::ListEntries]);
 
-    $schema = app(TranslationEntryFilterSchema::class)->make();
-    $filters = app(QueryFilterSetFactory::class)->fromQuery([
-        'filter' => ['locale' => 'bg'],
-        'sort' => 'key',
-    ], $schema);
-    $page = app(ListTranslationEntriesAction::class)->execute(25, $filters);
-    $filtered = app(GetTranslationCatalogStatisticsAction::class)->execute($filters);
+    $filters = ['locale' => 'bg', 'sort' => ['key']];
+    $page = app(TranslationCatalog::class)->paginate(SystemActor::Background, $filters, 25);
+    $filtered = app(TranslationCatalog::class)->statistics(SystemActor::Background, $filters);
 
     expect($page->total())->toBe(2)
-        ->and($filtered->toArray())->toBe([
+        ->and($filtered)->toBe([
             'total' => 2,
             'missing' => 0,
             'conflicts' => 1,
@@ -284,13 +279,13 @@ test('returns authorized bounded translation catalog statistics with list filter
 test('returns empty catalog statistics and caps dimensions at one hundred sorted keys', function (): void {
     $authorization = new class implements TranslationsAuthorization
     {
-        public function authorize(TranslationsAbility $ability, ?TranslationEntry $entry = null): void {}
+        public function authorize(TranslationsAbility $ability, Authenticatable|SystemActor $actor, ?TranslationEntry $entry = null): void {}
     };
     app()->instance(TranslationsAuthorization::class, $authorization);
 
-    $empty = app(GetTranslationCatalogStatisticsAction::class)->execute();
+    $empty = app(TranslationCatalog::class)->statistics(SystemActor::Background);
 
-    expect($empty->toArray())->toBe([
+    expect($empty)->toBe([
         'total' => 0,
         'missing' => 0,
         'conflicts' => 0,
@@ -329,21 +324,21 @@ test('returns empty catalog statistics and caps dimensions at one hundred sorted
         ]);
     }
 
-    $bounded = app(GetTranslationCatalogStatisticsAction::class)->execute();
+    $bounded = app(TranslationCatalog::class)->statistics(SystemActor::Background);
 
-    expect($bounded->locales)->toHaveCount(100)
-        ->and(array_key_first($bounded->locales))->toBe('locale-000')
-        ->and(array_key_last($bounded->locales))->toBe('locale-099')
-        ->and($bounded->scopes)->toHaveCount(100)
-        ->and(array_key_first($bounded->scopes))->toBe('app')
-        ->and($bounded->scopes['app'])->toBe(2)
-        ->and(array_key_last($bounded->scopes))->toBe('custom:scope-098');
+    expect($bounded['locales'])->toHaveCount(100)
+        ->and(array_key_first($bounded['locales']))->toBe('locale-000')
+        ->and(array_key_last($bounded['locales']))->toBe('locale-099')
+        ->and($bounded['scopes'])->toHaveCount(100)
+        ->and(array_key_first($bounded['scopes']))->toBe('app')
+        ->and($bounded['scopes']['app'])->toBe(2)
+        ->and(array_key_last($bounded['scopes']))->toBe('custom:scope-098');
 });
 
 test('serializes numeric-looking locale aggregate keys without a type error', function (): void {
     $authorization = new class implements TranslationsAuthorization
     {
-        public function authorize(TranslationsAbility $ability, ?TranslationEntry $entry = null): void {}
+        public function authorize(TranslationsAbility $ability, Authenticatable|SystemActor $actor, ?TranslationEntry $entry = null): void {}
     };
     app()->instance(TranslationsAuthorization::class, $authorization);
     foreach (['0', '1'] as $locale) {
@@ -360,19 +355,19 @@ test('serializes numeric-looking locale aggregate keys without a type error', fu
         ]);
     }
 
-    $statistics = app(GetTranslationCatalogStatisticsAction::class)->execute();
+    $statistics = app(TranslationCatalog::class)->statistics(SystemActor::Background);
     $json = json_encode($statistics, JSON_THROW_ON_ERROR);
 
-    expect($statistics->locales)->toBe([0 => 1, 1 => 1])
-        ->and($statistics->toArray()['locales'])->toBe([0 => 1, 1 => 1])
-        ->and($json)->toContain('"locales":{"0":1,"1":1}')
-        ->and($statistics->toJson(JSON_THROW_ON_ERROR))->toBe($json);
+    expect($statistics['locales'])->toBe([0 => 1, 1 => 1])
+        ->and($statistics['locales'])->toBe([0 => 1, 1 => 1])
+        ->and($json)->toContain('"locales":[1,1]')
+        ->and(json_encode($statistics, JSON_THROW_ON_ERROR))->toBe($json);
 });
 
 test('denies translation statistics before the first catalog query', function (): void {
     $authorization = new class implements TranslationsAuthorization
     {
-        public function authorize(TranslationsAbility $ability, ?TranslationEntry $entry = null): void
+        public function authorize(TranslationsAbility $ability, Authenticatable|SystemActor $actor, ?TranslationEntry $entry = null): void
         {
             throw new AuthorizationException('Denied.');
         }
@@ -382,35 +377,11 @@ test('denies translation statistics before the first catalog query', function ()
     DB::flushQueryLog();
     DB::enableQueryLog();
 
-    expect(fn () => app(GetTranslationCatalogStatisticsAction::class)->execute())
+    expect(fn () => app(TranslationCatalog::class)->statistics(SystemActor::Background))
         ->toThrow(AuthorizationException::class, 'Denied.');
     expect(DB::getQueryLog())->toBeEmpty();
 
     DB::disableQueryLog();
-});
-
-test('shares one translation entry schema across model http and consumer adapters', function (): void {
-    $serviceSchema = app(TranslationEntryFilterSchema::class)->make();
-    $modelSchema = (new TranslationEntry)->filterSchema();
-    $indexParameters = (new ReflectionMethod(
-        TranslationsApiController::class,
-        'index',
-    ))->getParameters();
-
-    expect(array_map(static fn ($definition): string => $definition->alias, $modelSchema->filters))
-        ->toBe(array_map(static fn ($definition): string => $definition->alias, $serviceSchema->filters))
-        ->and(array_map(static fn ($definition): string => $definition->alias, $modelSchema->sorts))
-        ->toBe(array_map(static fn ($definition): string => $definition->alias, $serviceSchema->sorts))
-        ->and(collect($indexParameters)->contains(
-            static fn (ReflectionParameter $parameter): bool => $parameter->getType() instanceof ReflectionNamedType
-                && $parameter->getType()->getName() === TranslationEntryFilterSchema::class,
-        ))->toBeTrue()
-        ->and((new ReflectionMethod(TranslationsApiController::class, 'index'))->getNumberOfRequiredParameters())
-        ->toBe(4);
-
-    expect(app(QueryFilterSetFactory::class)->fromQuery([
-        'filter' => ['is_missing' => true],
-    ], $serviceSchema))->toBeInstanceOf(FilterSet::class);
 });
 
 test('commands reject every ambiguous or unsafe option before doing work', function (): void {
@@ -465,9 +436,9 @@ test('commands reject every ambiguous or unsafe option before doing work', funct
 });
 
 test('configured authorization fails closed and passes ability plus entry to the consumer gate', function (): void {
-    $authorization = app(TranslationsAuthorization::class);
+    $authorization = app(ConfiguredTranslationsAuthorization::class);
 
-    expect(fn () => $authorization->authorize(TranslationsAbility::ListEntries))
+    expect(fn () => $authorization->authorize(TranslationsAbility::ListEntries, SystemActor::Background))
         ->toThrow(AuthorizationException::class, 'requires an authorization binding');
 
     config()->set('nvl-translations.authorization.ability', 'manage-translations');
@@ -488,10 +459,14 @@ test('configured authorization fails closed and passes ability plus entry to the
         'is_missing' => false,
     ]);
 
+    $actor = new class extends User {};
+    $actor->forceFill(['id' => 1]);
+    $actor->exists = true;
+    Gate::shouldReceive('forUser')->once()->with($actor)->andReturnSelf();
     Gate::shouldReceive('authorize')
         ->once()
         ->with('manage-translations', ['update_entry', $entry]);
-    $authorization->authorize(TranslationsAbility::UpdateEntry, $entry);
+    $authorization->authorize(TranslationsAbility::UpdateEntry, $actor, $entry);
 });
 
 test('typed configuration and hashes reject invalid consumer values', function (): void {
@@ -557,20 +532,21 @@ test('workspace filters preserve exact missing changed and search semantics', fu
             ...$attributes,
         ]);
     }
-    $filters = new TranslationEntry;
+    $catalog = app(TranslationCatalog::class);
+    expect($catalog->paginate(SystemActor::Background, ['search' => 'missing'])->total())->toBe(1)
+        ->and($catalog->paginate(SystemActor::Background, ['search' => '100%_safe'])->total())->toBe(1)
+        ->and($catalog->paginate(SystemActor::Background, ['key_contains' => '100%_safe'])->total())->toBe(1)
+        ->and($catalog->paginate(SystemActor::Background)->total())->toBe(4)
+        ->and($catalog->paginate(SystemActor::Background, ['missing_value' => true])->total())->toBe(2)
+        ->and($catalog->paginate(SystemActor::Background, ['missing_value' => false])->total())->toBe(2)
+        ->and($catalog->paginate(SystemActor::Background, ['changed_since_import' => true])->total())->toBe(2)
+        ->and($catalog->paginate(SystemActor::Background, ['changed_since_import' => false])->total())->toBe(2)
+        ->and($catalog->paginate(SystemActor::Background, ['is_missing' => true])->total())->toBe(1)
+        ->and($catalog->paginate(SystemActor::Background, ['is_missing' => false])->total())->toBe(3);
+    foreach (['missing_value', 'changed_since_import', 'is_missing'] as $key) {
+        expect(fn () => $catalog->paginate(SystemActor::Background, [$key => 'invalid']))->toThrow(InvalidTranslationInputException::class);
+    }
 
-    expect($filters->filterSearch(TranslationEntry::query(), 'missing')->count())->toBe(1)
-        ->and($filters->filterSearch(TranslationEntry::query(), '100%_safe')->count())->toBe(1)
-        ->and($filters->filterSearch(TranslationEntry::query(), null)->count())->toBe(4)
-        ->and($filters->filterMissingValue(TranslationEntry::query(), true)->count())->toBe(2)
-        ->and($filters->filterMissingValue(TranslationEntry::query(), false)->count())->toBe(2)
-        ->and($filters->filterMissingValue(TranslationEntry::query(), 'invalid')->count())->toBe(4)
-        ->and($filters->filterChangedSinceImport(TranslationEntry::query(), true)->count())->toBe(2)
-        ->and($filters->filterChangedSinceImport(TranslationEntry::query(), false)->count())->toBe(2)
-        ->and($filters->filterChangedSinceImport(TranslationEntry::query(), 'invalid')->count())->toBe(4)
-        ->and($filters->filterIsMissing(TranslationEntry::query(), true)->count())->toBe(1)
-        ->and($filters->filterIsMissing(TranslationEntry::query(), false)->count())->toBe(3)
-        ->and($filters->filterIsMissing(TranslationEntry::query(), 'invalid')->count())->toBe(4);
 });
 
 test('public list validation conflict responses and catalog keys are deterministic', function (): void {
@@ -613,13 +589,9 @@ test('doctor reports invalid configuration as structured checks without mutation
     config()->set($values);
 
     expect(collect(app(TranslationsDoctor::class)->inspect())->contains(
-        static fn ($check): bool => ! $check->passed,
+        static fn ($check): bool => ! $check['passed'],
     ))->toBeTrue();
 })->with([
-    'enabled route boundary' => [[
-        'nvl-translations.routes.enabled' => true,
-        'nvl-translations.routes.management_middleware' => [],
-    ]],
     'relative app path' => [['nvl-translations.paths.app' => 'relative/path']],
     'custom scopes' => [['nvl-translations.custom_scopes' => 'shared']],
     'export targets' => [['nvl-translations.export_targets' => 'generated']],

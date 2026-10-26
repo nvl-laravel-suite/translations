@@ -14,7 +14,7 @@ use Nvl\Support\Contracts\DomainEvent;
 final class TranslationsExported implements DomainEvent
 {
     /**
-     * @param  array{scopes:int,locales:int,files:int,deleted:int,target:string}  $result
+     * @param  array{scopes:int,locales:int,files:int,deleted:int,target:string,paths:list<string>}  $result
      */
     public function __construct(public readonly array $result, public readonly int $schemaVersion = 1) {}
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Contracts;
 
+use Illuminate\Contracts\Auth\Authenticatable;
+use Nvl\Support\Enums\SystemActor;
 use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Models\TranslationEntry;
 
@@ -19,6 +21,7 @@ interface TranslationsAuthorization
      */
     public function authorize(
         TranslationsAbility $ability,
+        Authenticatable|SystemActor $actor,
         ?TranslationEntry $entry = null,
     ): void;
 }

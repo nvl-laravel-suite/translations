@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nvl\Translations\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Nvl\Data\Services\TypeScriptSourceRegistry;
 use Nvl\Ownership\Services\OwnershipAdoptionRegistry;
 use Nvl\Support\Doctor\PackageDoctorContributor;
 use Nvl\Support\Globals\GlobalNames;
@@ -14,16 +13,6 @@ use Nvl\Support\Ownership\Services\OwnershipResourceRegistry;
 use Nvl\Support\Providers\SupportServiceProvider;
 use Nvl\Support\Traits\MergesPackageConfiguration;
 use Nvl\Support\Traits\RegistersNamespacedResources;
-use Nvl\Translations\Actions\Entries\GetTranslationCatalogStatisticsAction;
-use Nvl\Translations\Actions\Entries\ListTranslationEntriesAction;
-use Nvl\Translations\Actions\Entries\ListTranslationFilterOptionsAction;
-use Nvl\Translations\Actions\Entries\UpdateTranslationEntryAction;
-use Nvl\Translations\Actions\ExportTranslationOverridesAction;
-use Nvl\Translations\Actions\Sync\ExportTranslationsAction;
-use Nvl\Translations\Actions\Sync\ImportTranslationsAction;
-use Nvl\Translations\Actions\Sync\ListUnusedTranslationsAction;
-use Nvl\Translations\Actions\Sync\ScanTranslationsAction;
-use Nvl\Translations\Compatibility\LegacyTranslationsServiceProvider;
 use Nvl\Translations\Console\Commands\TranslationsDoctorCommand;
 use Nvl\Translations\Console\Commands\TranslationsExportCommand;
 use Nvl\Translations\Console\Commands\TranslationsImportCommand;
@@ -31,17 +20,8 @@ use Nvl\Translations\Console\Commands\TranslationsPruneCommand;
 use Nvl\Translations\Console\Commands\TranslationsScanCommand;
 use Nvl\Translations\Console\Commands\TranslationsStatusCommand;
 use Nvl\Translations\Console\Commands\TranslationsUnusedCommand;
-use Nvl\Translations\Contracts\ExportTranslationOverridesContract;
-use Nvl\Translations\Contracts\ExportTranslationsContract;
-use Nvl\Translations\Contracts\GetTranslationCatalogStatisticsContract;
-use Nvl\Translations\Contracts\ImportTranslationsContract;
-use Nvl\Translations\Contracts\ListTranslationEntriesContract;
-use Nvl\Translations\Contracts\ListTranslationFilterOptionsContract;
-use Nvl\Translations\Contracts\ListUnusedTranslationsContract;
-use Nvl\Translations\Contracts\ScanTranslationsContract;
 use Nvl\Translations\Contracts\TranslationOverrideRepository;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
-use Nvl\Translations\Contracts\UpdateTranslationEntryContract;
 use Nvl\Translations\Ownership\TranslationsAdoptionAdapter;
 use Nvl\Translations\Ownership\TranslationsResourceRegistrar;
 use Nvl\Translations\Services\ConfiguredTranslationsAuthorization;
@@ -60,9 +40,8 @@ final class TranslationsServiceProvider extends ServiceProvider implements Owner
     /**
      * Boot the application events.
      */
-    public function boot(TypeScriptSourceRegistry $typeScriptSources): void
+    public function boot(): void
     {
-        $typeScriptSources->register(__DIR__.'/..', 'nvl/translations');
 
         if ($this->app->runningInConsole()) {
             $this->registerCommands();
@@ -76,13 +55,7 @@ final class TranslationsServiceProvider extends ServiceProvider implements Owner
         if ((bool) config('nvl-translations.migrations.enabled', true)) {
             $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
         }
-        if ((bool) config('nvl-translations.routes.enabled', false)) {
-            $this->loadRoutesFrom(__DIR__.'/../../routes/api.php');
-        }
 
-        $this->publishes([
-            __DIR__.'/../../resources/boost/skills' => base_path('.agents/skills'),
-        ], 'translations-skills');
     }
 
     /**
@@ -90,20 +63,13 @@ final class TranslationsServiceProvider extends ServiceProvider implements Owner
      */
     public function register(): void
     {
-        $this->app->bindIf(GetTranslationCatalogStatisticsContract::class, GetTranslationCatalogStatisticsAction::class);
-        $this->app->bindIf(ListTranslationEntriesContract::class, ListTranslationEntriesAction::class);
-        $this->app->bindIf(ListTranslationFilterOptionsContract::class, ListTranslationFilterOptionsAction::class);
-        $this->app->bindIf(ExportTranslationsContract::class, ExportTranslationsAction::class);
-        $this->app->bindIf(ListUnusedTranslationsContract::class, ListUnusedTranslationsAction::class);
 
         PackageDoctorContributor::register($this->app, 'nvl/translations', fn (): array => $this->app->make(TranslationsDoctor::class)->inspect());
 
         $this->app->register(SupportServiceProvider::class);
         $this->mergePackageConfiguration(__DIR__.'/../../config/nvl-translations.php', 'translations');
-        $this->app->register(LegacyTranslationsServiceProvider::class, true);
         $this->app->singletonIf(TranslationOverrideModels::class);
         $this->app->scopedIf(TranslationOverrideRepository::class, DatabaseTranslationOverrideRepository::class);
-        $this->app->bindIf(ExportTranslationOverridesContract::class, ExportTranslationOverridesAction::class);
         $this->app->booted(function (): void {
             $owned = config('nvl-ownership.enabled') === true && config('nvl-translations.ownership.scoped') === true;
             $this->app->make(TranslationsResourceRegistrar::class)->register($this->app->make(OwnershipResourceRegistry::class), $owned);
@@ -112,18 +78,6 @@ final class TranslationsServiceProvider extends ServiceProvider implements Owner
             }
         });
 
-        $this->app->bindIf(
-            UpdateTranslationEntryContract::class,
-            UpdateTranslationEntryAction::class
-        );
-        $this->app->bindIf(
-            ImportTranslationsContract::class,
-            ImportTranslationsAction::class
-        );
-        $this->app->bindIf(
-            ScanTranslationsContract::class,
-            ScanTranslationsAction::class
-        );
         $this->app->bindIf(
             TranslationsAuthorization::class,
             ConfiguredTranslationsAuthorization::class,

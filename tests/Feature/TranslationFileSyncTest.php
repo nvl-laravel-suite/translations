@@ -2,24 +2,30 @@
 
 declare(strict_types=1);
 
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Nvl\Support\Contracts\DomainEvent;
-use Nvl\Translations\Actions\Entries\UpdateTranslationEntryAction;
-use Nvl\Translations\Actions\Sync\ExportTranslationsAction;
-use Nvl\Translations\Actions\Sync\ImportTranslationsAction;
-use Nvl\Translations\Data\UpdateTranslationEntryPayload;
+use Nvl\Support\Enums\SystemActor;
+use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Events\TranslationEntryUpdated;
 use Nvl\Translations\Events\TranslationsExported;
 use Nvl\Translations\Events\TranslationsImported;
 use Nvl\Translations\Events\TranslationsScanned;
+use Nvl\Translations\Exceptions\InvalidTranslationInputException;
 use Nvl\Translations\Exceptions\StaleTranslationWorkspaceException;
 use Nvl\Translations\Exceptions\TranslationsException;
 use Nvl\Translations\Exceptions\TranslationWorkspaceLockedException;
 use Nvl\Translations\Models\TranslationEntry;
+use Nvl\Translations\Services\ConfiguredTranslationsAuthorization;
+use Nvl\Translations\Services\TranslationCatalog;
+use Nvl\Translations\Services\TranslationExporter;
+use Nvl\Translations\Services\TranslationImporter;
 use Nvl\Translations\Services\TranslationPathGuard;
+use Nvl\Translations\Services\TranslationScanner;
 use Nvl\Translations\Services\TranslationScopeResolver;
 
 beforeEach(function (): void {
@@ -58,12 +64,12 @@ test('top-level numeric PHP keys round trip through the translation workspace', 
         '<?php return '.var_export($payload, true).';',
     );
 
-    $imported = app(ImportTranslationsAction::class)->execute(['app'], 'php');
+    $imported = app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'php');
 
     expect($imported['entries'])->toBe(3)
         ->and(TranslationEntry::query()->where('key', '0')->firstOrFail()->value)->toBe('Zero');
 
-    app(ExportTranslationsAction::class)->execute(['app'], ['en'], 'php', 'generated');
+    app(TranslationExporter::class)->export(SystemActor::Background, ['app'], ['en'], 'php', 'generated');
 
     expect(require $this->translationTarget.'/en/numbers.php')->toBe($payload);
 });
@@ -87,7 +93,7 @@ PHP);
 }
 JSON);
 
-    $imported = app(ImportTranslationsAction::class)->execute(['app']);
+    $imported = app(TranslationImporter::class)->import(SystemActor::Background, ['app']);
 
     expect($imported)
         ->toMatchArray([
@@ -104,20 +110,20 @@ JSON);
         ->where('locale', 'en')
         ->firstOrFail();
 
-    app(UpdateTranslationEntryAction::class)->execute(
+    app(TranslationCatalog::class)->update(SystemActor::Background,
         $phpEntry,
-        UpdateTranslationEntryPayload::validateAndCreate([
+        [
             'value' => 'Save changes',
             'expectedRevision' => $phpEntry->revision,
-        ]),
+        ],
     );
 
-    $reimported = app(ImportTranslationsAction::class)->execute(['app']);
+    $reimported = app(TranslationImporter::class)->import(SystemActor::Background, ['app']);
 
     expect($reimported['preserved'])->toBe(1)
         ->and($phpEntry->fresh()->value)->toBe('Save changes');
 
-    $exported = app(ExportTranslationsAction::class)->execute(
+    $exported = app(TranslationExporter::class)->export(SystemActor::Background,
         ['app'],
         null,
         'both',
@@ -141,7 +147,7 @@ JSON);
     expect($phpPayload)->toBe(['actions' => ['save' => 'Save changes']])
         ->and($jsonPayload)->toBe(['Save' => 'Запази']);
 
-    app(ImportTranslationsAction::class)->execute(['app']);
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app']);
 
     expect($phpEntry->fresh()->value)->toBe('Save changes');
 });
@@ -149,7 +155,7 @@ JSON);
 test('JSON-only locales import without requiring a matching PHP locale directory', function (): void {
     File::put($this->translationSource.'/fr.json', '{"Continue":"Continuer"}');
 
-    $result = app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    $result = app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
 
     expect($result['files'])->toBe(1)
         ->and($result['entries'])->toBe(1)
@@ -165,7 +171,7 @@ test('format selection leaves unselected catalog formats untouched', function ()
     File::put($this->translationSource.'/en/messages.php', "<?php\n\nreturn ['save' => 'Save'];\n");
     File::put($this->translationSource.'/en.json', '{"Save":"Save"}');
 
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
 
     expect(TranslationEntry::query()->pluck('format')->all())->toBe(['json']);
 });
@@ -185,7 +191,7 @@ test('strict malformed input does not partially mutate the database catalog', fu
     File::put($this->translationSource.'/en.json', '{"Existing":"Changed"}');
     File::put($this->translationSource.'/bg.json', '{"Broken":');
 
-    expect(fn () => app(ImportTranslationsAction::class)->execute(['app'], 'json'))
+    expect(fn () => app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json'))
         ->toThrow(TranslationsException::class, 'stopped before database synchronization');
 
     $entry = TranslationEntry::query()->firstOrFail();
@@ -197,7 +203,7 @@ test('strict malformed input does not partially mutate the database catalog', fu
 test('pruning is explicit and limited to the selected locale and configured target', function (): void {
     File::ensureDirectoryExists($this->translationSource.'/en');
     File::put($this->translationSource.'/en/messages.php', "<?php\n\nreturn ['save' => 'Save'];\n");
-    app(ImportTranslationsAction::class)->execute(['app'], 'php');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'php');
 
     File::ensureDirectoryExists($this->translationTarget.'/en');
     File::ensureDirectoryExists($this->translationTarget.'/bg');
@@ -205,7 +211,7 @@ test('pruning is explicit and limited to the selected locale and configured targ
     File::put($this->translationTarget.'/en/keep.txt', 'not a translation file');
     File::put($this->translationTarget.'/bg/stale.php', "<?php\n\nreturn ['stale' => 'Остаряло'];\n");
 
-    $withoutPrune = app(ExportTranslationsAction::class)->execute(
+    $withoutPrune = app(TranslationExporter::class)->export(SystemActor::Background,
         ['app'],
         ['en'],
         'php',
@@ -216,7 +222,7 @@ test('pruning is explicit and limited to the selected locale and configured targ
     expect($withoutPrune['deleted'])->toBe(0)
         ->and(File::exists($this->translationTarget.'/en/stale.php'))->toBeTrue();
 
-    $withPrune = app(ExportTranslationsAction::class)->execute(
+    $withPrune = app(TranslationExporter::class)->export(SystemActor::Background,
         ['app'],
         ['en'],
         'php',
@@ -235,14 +241,14 @@ test('scope and destination selection only accepts configured names and safe loc
 
     expect(fn () => $resolver->resolveScopes(['custom:missing']))
         ->toThrow(TranslationsException::class, 'Unknown translation scope')
-        ->and(fn () => app(ExportTranslationsAction::class)->execute(
+        ->and(fn () => app(TranslationExporter::class)->export(SystemActor::Background,
             ['app'],
             null,
             'json',
             'arbitrary-path',
         ))
         ->toThrow(TranslationsException::class, 'Unknown translation export target')
-        ->and(fn () => app(ExportTranslationsAction::class)->execute(
+        ->and(fn () => app(TranslationExporter::class)->export(SystemActor::Background,
             ['app'],
             ['../outside'],
             'json',
@@ -276,47 +282,47 @@ test('translation synchronization events are commit-aware', function (): void {
 
     Event::fake([TranslationsImported::class]);
     File::put($this->translationSource.'/en.json', '{"Save":"Save"}');
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
 
     Event::assertDispatched(TranslationsImported::class);
 });
 
 test('workspace edits require the current optimistic revision', function (): void {
     File::put($this->translationSource.'/en.json', '{"Save":"Save"}');
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
     $entry = TranslationEntry::query()->sole();
     $revision = $entry->revision;
-    $action = app(UpdateTranslationEntryAction::class);
+    $action = app(TranslationCatalog::class);
 
-    $updated = $action->execute(
+    $updated = $action->update(SystemActor::Background,
         $entry,
-        UpdateTranslationEntryPayload::validateAndCreate([
+        [
             'value' => 'Save changes',
             'expectedRevision' => $revision,
-        ]),
+        ],
     );
 
     expect($updated->revision)->toBe($revision + 1)
         ->and($updated->sync_status->value)->toBe('edited')
-        ->and(fn () => $action->execute(
+        ->and(fn () => $action->update(SystemActor::Background,
             $updated,
-            UpdateTranslationEntryPayload::validateAndCreate([
+            [
                 'value' => 'Overwrite',
                 'expectedRevision' => $revision,
-            ]),
+            ],
         ))->toThrow(StaleTranslationWorkspaceException::class);
 });
 
 test('dry runs report import and export plans without changing state', function (): void {
     File::put($this->translationSource.'/en.json', '{"Save":"Save"}');
 
-    $sync = app(ImportTranslationsAction::class)->execute(['app'], 'json', true);
+    $sync = app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json', true);
 
     expect($sync['created'])->toBe(1)
         ->and(TranslationEntry::query()->count())->toBe(0);
 
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
-    $plan = app(ExportTranslationsAction::class)->execute(
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
+    $plan = app(TranslationExporter::class)->export(SystemActor::Background,
         ['app'],
         null,
         'json',
@@ -331,24 +337,24 @@ test('dry runs report import and export plans without changing state', function 
 
 test('conflicts fail safely and explicit strategies retain conflict metadata', function (): void {
     File::put($this->translationSource.'/en.json', '{"Save":"Save"}');
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
     $entry = TranslationEntry::query()->sole();
-    app(UpdateTranslationEntryAction::class)->execute(
+    app(TranslationCatalog::class)->update(SystemActor::Background,
         $entry,
-        UpdateTranslationEntryPayload::validateAndCreate([
+        [
             'value' => 'Database edit',
             'expectedRevision' => $entry->revision,
-        ]),
+        ],
     );
     File::put($this->translationSource.'/en.json', '{"Save":"File edit"}');
 
     config()->set('nvl-translations.import.conflict_strategy', 'fail');
 
-    expect(fn () => app(ImportTranslationsAction::class)->execute(['app'], 'json'))
+    expect(fn () => app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json'))
         ->toThrow(TranslationsException::class, 'sync conflict');
 
     config()->set('nvl-translations.import.conflict_strategy', 'prefer_file');
-    $result = app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    $result = app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
     $resolved = $entry->fresh();
 
     expect($result['conflicts'])->toBe(1)
@@ -361,10 +367,10 @@ test('conflicts fail safely and explicit strategies retain conflict metadata', f
 
 test('export re-reads authoritative files and creates replacement backups', function (): void {
     File::put($this->translationSource.'/en.json', '{"Save":"Save"}');
-    app(ImportTranslationsAction::class)->execute(['app'], 'json');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
     File::put($this->translationSource.'/en.json', '{"Save":"File edit"}');
 
-    app(ExportTranslationsAction::class)->execute(
+    app(TranslationExporter::class)->export(SystemActor::Background,
         ['app'],
         null,
         'json',
@@ -380,15 +386,15 @@ test('export re-reads authoritative files and creates replacement backups', func
         ))->toBe(['Save' => 'File edit']);
 
     $entry = TranslationEntry::query()->sole();
-    app(UpdateTranslationEntryAction::class)->execute(
+    app(TranslationCatalog::class)->update(SystemActor::Background,
         $entry,
-        UpdateTranslationEntryPayload::validateAndCreate([
+        [
             'value' => 'Database replacement',
             'expectedRevision' => $entry->revision,
-        ]),
+        ],
     );
     config()->set('nvl-translations.import.conflict_strategy', 'prefer_database');
-    app(ExportTranslationsAction::class)->execute(['app'], null, 'json', 'source');
+    app(TranslationExporter::class)->export(SystemActor::Background, ['app'], null, 'json', 'source');
 
     expect(File::allFiles($this->translationSyncRoot.'/backups'))->not->toBeEmpty();
 });
@@ -409,7 +415,7 @@ test('path guards reject symlink escapes and workspace locks reject concurrent s
     expect($lock->get())->toBeTrue();
 
     try {
-        expect(fn () => app(ImportTranslationsAction::class)->execute(['app'], 'json'))
+        expect(fn () => app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json'))
             ->toThrow(TranslationWorkspaceLockedException::class);
     } finally {
         $lock->release();
@@ -439,4 +445,37 @@ test('doctor strict mode promotes disabled backup warnings to failures', functio
         '--strict' => true,
         '--format' => 'json',
     ])->assertFailed();
+});
+
+test('native catalog mutations preserve explicit null and reject protected fields and transient actors', function (): void {
+    File::put($this->translationSource.'/en.json', '{"Save":"Save"}');
+    $actor = SystemActor::Background;
+    app(TranslationImporter::class)->import($actor, ['app'], 'json');
+    $entry = TranslationEntry::query()->sole();
+    $catalog = app(TranslationCatalog::class);
+    expect(fn () => $catalog->update($actor, $entry, ['value' => 'Changed', 'expectedRevision' => $entry->revision, 'locale' => 'bg']))
+        ->toThrow(InvalidTranslationInputException::class);
+    expect(fn () => $catalog->update($actor, $entry, ['expectedRevision' => $entry->revision]))
+        ->toThrow(InvalidTranslationInputException::class);
+    expect($catalog->update($actor, $entry, ['value' => null, 'expectedRevision' => $entry->revision])->value)->toBeNull();
+    $transient = new class extends User {};
+    expect(fn () => $catalog->paginate($transient))->toThrow(AuthorizationException::class);
+});
+
+test('native source operations reject denied actors before protected reads and writes', function (): void {
+    app()->bind(TranslationsAuthorization::class, ConfiguredTranslationsAuthorization::class);
+    $actor = SystemActor::Background;
+    $connection = (new TranslationEntry)->getConnection();
+    $connection->flushQueryLog();
+    $connection->enableQueryLog();
+    foreach ([
+        fn () => app(TranslationImporter::class)->import($actor),
+        fn () => app(TranslationExporter::class)->export($actor),
+        fn () => app(TranslationScanner::class)->scan($actor),
+        fn () => app(TranslationCatalog::class)->paginate($actor),
+    ] as $operation) {
+        expect($operation)->toThrow(AuthorizationException::class);
+    }
+    expect($connection->getQueryLog())->toBeEmpty();
+    $connection->disableQueryLog();
 });

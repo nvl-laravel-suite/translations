@@ -38,7 +38,7 @@ beforeEach(function (): void {
     ]);
     app()->instance(TranslationsAuthorization::class, $this->apiAuthorization);
 
-    require __DIR__.'/../../routes/api.php';
+    require __DIR__.'/../Fixtures/routes.php';
 });
 
 afterEach(function (): void {

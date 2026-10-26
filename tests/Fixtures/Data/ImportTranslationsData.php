@@ -1,0 +1,47 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Nvl\Translations\Tests\Fixtures\Data;
+
+use Illuminate\Validation\Rule;
+use Nvl\Translations\Tests\Fixtures\StringOrList;
+use Spatie\LaravelData\Data;
+
+/** Validated file-to-workspace import options. */
+final class ImportTranslationsData extends Data
+{
+    /** @param array<array-key, mixed>|string|null $scope */
+    public function __construct(
+        public readonly string|array|null $scope = null,
+        public readonly ?string $format = null,
+        public readonly ?bool $dryRun = null,
+    ) {}
+
+    /** @return array<string, list<mixed>> */
+    public static function rules(): array
+    {
+        return [
+            'scope' => ['nullable', new StringOrList(maximumItemLength: 255)],
+            'scope.*' => ['string', 'max:255'],
+            'format' => ['nullable', 'string', Rule::in(['php', 'json', 'both'])],
+            'dryRun' => ['nullable', 'boolean'],
+        ];
+    }
+
+    /** @return list<string> */
+    public function scopeTokens(): array
+    {
+        return TranslationOptionNormalizer::list($this->scope) ?? [];
+    }
+
+    public function translationFormat(): string
+    {
+        return $this->format ?? 'both';
+    }
+
+    public function isDryRun(): bool
+    {
+        return $this->dryRun ?? false;
+    }
+}

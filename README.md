@@ -1,87 +1,36 @@
-# NVL Translations — API and usage
+# NVL Translations
 
-## Quickstart
+Native Laravel 13 translation catalog scanning, editing, import and export. Requires PHP 8.4 and `nvl/core:^6.0`; `nvl/ownership:^6.0` optionally isolates owner copy overrides. Use `nvl/translatable` for localized Eloquent content.
 
-```sh
-composer require nvl/translations:^6.0
-php artisan nvl:install translations --dry-run
-php artisan nvl:install translations
-```
+## Native API
 
-Required NVL dependencies: `nvl/core` (`^6.0`), `nvl/filterable` (`^6.0`). Configure explicit application source roots before scanning. Catalog scan/usage records are global vocabulary; owner overrides require explicit admitted ownership.
-Review the published common config, select one migration owner, and run schema preflight before existing-table upgrades. The installer does not enable features or run migrations. Follow the detailed installation and capability sections below before invoking a storage/provider operation.
-
-Inject `Nvl\Translations\Contracts\ScanTranslationsContract` in a host service. After supplying the trusted inputs described above, the first public call is:
+Inject `Nvl\Translations\Services\TranslationImporter`, `TranslationExporter`, `TranslationScanner`, and `TranslationCatalog`. Every operation takes an explicit persisted `Authenticatable` or `SystemActor` first. Bind `TranslationsAuthorization` to a host policy; the default denies access until a Gate ability is configured, and system actors require an explicit policy binding.
 
 ```php
-use Nvl\Translations\Contracts\ScanTranslationsContract;
-
-/** @var ScanTranslationsContract $capability */
-$result = $capability->execute();
+$summary = $importer->import($actor, ['app'], 'both', dryRun: false);
+$artifacts = $exporter->export($actor, ['app'], ['en'], 'both', 'generated');
+$paths = $artifacts['paths'];
+$scan = $scanner->scan($actor);
+$page = $catalog->paginate($actor, ['locale' => 'en', 'sort' => ['key']], 25);
+$entry = $catalog->update($actor, $entry, ['value' => null, 'expectedRevision' => $entry->revision]);
+$statistics = $catalog->statistics($actor, ['is_missing' => true]);
+$unused = $catalog->unused($actor, ['app'], days: 30);
 ```
 
-Use the [event catalog](docs/events.md) and [Testing your app](#testing-your-app) below. The suite [getting-started guide](https://github.com/nvl-laravel-suite/laravel-suite/blob/main/docs/getting-started.md) provides a complete Comments host fixture; package archives retain their own local references.
+Import and export use configured scope tokens and named destinations, never arbitrary caller paths. Export returns an array summary plus actual artifact paths; a batch can contain multiple PHP and JSON files. Scanning uses configured source roots. Catalog criteria allow `scope_type`, `scope_name`, `locale`, `format`, `group`, `key`, `key_contains`, `search`, `missing_value`, `changed_since_import`, `is_missing`, and `sort`. String fields accept exact strings or lists; state fields require booleans. Sorts are allowlisted and tied by ID.
 
+`TranslationOverrideRepository` provides `get($actor, $key, $locale)`, `set($actor, $key, $locale, $value, $expectedRevision)`, `forget($actor, $key, $locale, $expectedRevision)` and `export($actor, $disk)` inside an admitted native owner context. Exports are private and return owner identity, disk, path, SHA-256 and size. Revision zero creates an override; positive revisions perform conditional changes. Configure literal `ownership.keys` and the optional override model before provider boot. Native adoption accepts reviewed mappings over populated native storage.
 
-[← NVL Laravel Suite](https://github.com/nvl-laravel-suite)
+HTTP controllers, requests, editor projections, select options and frontend types belong to applications. The package publishes no management routes or consumer type metadata. Active HTTP regression fixtures demonstrate application adaptation under `tests/Fixtures` and are excluded from the package archive.
 
-For support, [open an issue](https://github.com/nvl-laravel-suite/translations/issues). For vulnerabilities, use
-[private reporting](https://github.com/nvl-laravel-suite/translations/security/advisories/new). See [Contributing](CONTRIBUTING.md).
-
-See the [installation and publishing guide](https://github.com/nvl-laravel-suite/laravel-suite/blob/main/docs/installation.md) for Composer setup, configuration, migration ownership, and agent skills.
-
-## Quick reference
-
-| Item | Value |
-|---|---|
-| Installed through | `composer require nvl/translations:^6.0` |
-| Module identifier | `nvl/translations` |
-| PHP namespace | `Nvl\Translations` |
-| Service provider | `Nvl\Translations\Providers\TranslationsServiceProvider` |
-| Configuration | `config/nvl-translations.php` |
-
-The suite's Laravel 12–13 file-catalog module for reading, scanning, editing, synchronizing, and resaving PHP-array and JSON translation files.
-
-Use `nvl/translatable` for locale-specific Eloquent content. This package only manages Laravel language files.
-
-## Purpose and boundary
-
-The workflow is deliberately simple:
-
-1. Read translation files from configured source directories.
-2. Synchronize each leaf string into editable database rows.
-3. Edit those rows through package Actions or the optional management API.
-4. Resave the rows as valid Laravel PHP or JSON translation files.
-
-The database is an editing and synchronization workspace. It is not installed as Laravel's runtime translation loader, does not override file lookup precedence, and does not store translatable model content.
-
-## Requirements and installation
-
-- PHP 8.4+
-- Laravel 12–13
-- `nvl/core:^6.0` and `nvl/filterable`
-- Optional `nvl/ownership` for isolated owner copy; optional `nvl/tenancy` only for the legacy bridge
+## Installation
 
 ```bash
 composer require nvl/translations:^6.0
 php artisan migrate
-php artisan vendor:publish --tag=nvl-translations-config
-php artisan vendor:publish --tag=nvl-translations-skills
 ```
 
-Choose exactly one migration owner. For automatic vendor loading, leave
-`nvl-translations.migrations.enabled=true` and do not publish
-`nvl-translations-migrations`. For host-owned migrations, run
-`php artisan vendor:publish --tag=nvl-translations-migrations`, set
-`nvl-translations.migrations.enabled=false` before the first migration, and
-maintain the copied files as application migrations. Never run both sources;
-Laravel retimestamps published migrations.
-
-The package supplies English and Bulgarian validation copy. Publish overrides when needed:
-
-```bash
-php artisan vendor:publish --tag=nvl-translations-translations
-```
+Configure `config/nvl-translations.php` and choose one migration owner: automatic loading (`migrations.enabled=true`), or published host migrations with automatic loading disabled. CLI workflows use `SystemActor::Background` and require the same explicit host policy as native calls. Source workspace operations are unavailable inside owner or public-site execution.
 
 ## File formats
 
@@ -105,9 +54,10 @@ lang/
 - Only valid UTF-8 string or null leaf values are managed. Booleans and numbers are rejected instead of being silently coerced. Nested PHP arrays are flattened and reconstructed, including numeric keys at the top level or inside arrays; empty arrays contain no translation leaves.
 - Dots in PHP leaf identities represent nesting. Literal dots or empty strings inside an individual PHP array-key segment are rejected because they cannot be round-tripped without changing the array shape.
 
+
 ## Configure source locations
 
-The application source defaults to Laravel's `lang_path()`, which is the root `lang` directory in Laravel 12–13:
+The application source defaults to Laravel's `lang_path()`, which is the root `lang` directory in Laravel 13:
 
 ```php
 'paths' => [
@@ -150,6 +100,7 @@ Additional configured file roots become `custom:<name>` scopes:
 
 Every configured path must be an absolute local directory. Scope tokens and locale names are validated; HTTP and CLI input is never interpreted as an arbitrary output path.
 
+
 ## Import files into the editable catalog
 
 ```bash
@@ -190,65 +141,6 @@ Missing configured directories are reported and skipped. A successfully read sel
 
 PHP catalog loading is output-buffered: a catalog that emits output is rejected instead of corrupting a console or API response. Files or directories reached through symbolic links are rejected.
 
-## Edit database rows
-
-Use the validated DTO and Action. Supply `$expectedRevision` from the authorized
-management projection; do not read undeclared fields from the TranslationEntry
-identity handle. Preserve the revision when submitting the edit:
-
-```php
-$entry = app(UpdateTranslationEntryContract::class)->execute(
-    entry: $entry,
-    data: UpdateTranslationEntryPayload::validateAndCreate([
-        'value' => 'Save changes',
-        'expectedRevision' => $expectedRevision,
-    ]),
-);
-```
-
-`ListTranslationEntriesAction` provides paginated, filterable administrative reads. `ListTranslationFilterOptionsAction` returns available scope, locale, and PHP-group filters.
-
-Edits use both a database row lock and the same workspace lock as synchronization, and require the current optimistic revision. The source hash is intentionally not replaced by a database edit. A later import can therefore distinguish an unsaved database edit from an unchanged source file.
-
-## Catalog statistics and shared filters
-
-Use the public schema service when an application owns its management controller.
-This avoids constructing `TranslationEntry` only to discover the package's filter
-allowlist and keeps list and statistics inputs identical:
-
-```php
-use Nvl\Filterable\Http\QueryFilterSetFactory;
-use Nvl\Translations\Contracts\GetTranslationCatalogStatisticsContract;
-use Nvl\Translations\Services\TranslationEntryFilterSchema;
-
-$schema = app(TranslationEntryFilterSchema::class)->make();
-$filters = app(QueryFilterSetFactory::class)->fromQuery(
-    request()->query(),
-    $schema,
-);
-
-$statistics = app(GetTranslationCatalogStatisticsContract::class)->execute($filters);
-```
-
-`GetTranslationCatalogStatisticsAction::execute(?FilterSet $filters = null)`
-authorizes `TranslationsAbility::ListEntries` before its first query and returns
-`TranslationCatalogStatisticsData`. The projection contains `total`, `missing`,
-`conflicts`, `changed`, `locales`, and `scopes`:
-
-- `missing` counts rows whose durable `is_missing` marker is true.
-- `conflicts` counts rows whose synchronization status is `conflict`.
-- `changed` counts rows with a source hash whose durable status is `edited` or
-  `conflict`. A preserved database edit remains `edited`; “preserved” is an
-  import result counter, not a stored synchronization status.
-- `locales` and `scopes` are `array<string, int>` maps sorted by count descending
-  and key ascending, capped at 100 entries each. Scope keys use command-compatible
-  tokens such as `app`, `module:Website`, and `custom:shared`. JSON serialization
-  always emits both maps as objects, including valid numeric-only locale keys.
-
-The statistics read executes one scalar aggregate and one grouped query per
-dimension: three queries regardless of catalog size. Caller-provided sort clauses
-do not affect aggregates; every allowlisted filter is applied with the same
-semantics as `ListTranslationEntriesAction`.
 
 ## Configure output directories
 
@@ -268,6 +160,7 @@ semantics as `ListTranslationEntriesAction`.
 A named target must explicitly map every selected scope. This supports generated directories, deployment staging, frontend handoff directories, or other application-owned locations without accepting filesystem paths from requests.
 
 Named destinations must be distinct from every source scope, the backup directory, and each other. Duplicate discovered scope tokens that point at different roots fail configuration validation.
+
 
 ## Resave files
 
@@ -305,6 +198,7 @@ Every export performs a fresh authoritative-source read first. Export stops when
 
 Exporting to `source` updates the synchronization hash because the imported source was replaced. Exporting to another named target does not alter source tracking, so a later source import still preserves unexported database edits.
 
+
 ## Pruning
 
 Pruning is opt-in because it deletes stale translation files:
@@ -323,6 +217,7 @@ Pruning is constrained to the selected configured target, scopes, locales, and f
 - PHP pruning only considers `.php` files below the selected locale directory.
 - JSON pruning only considers the selected `<locale>.json` file.
 - Other extensions and unselected locales are untouched.
+
 
 ## Source usage scanning
 
@@ -368,28 +263,6 @@ Workspace synchronization uses an atomic cache lock:
 
 All application nodes must use the same lock-capable cache store. Size the lock lifetime above the longest expected import, export, or scan.
 
-## Optional management API
-
-The API defaults to `nvl/api/v1/translations`:
-
-```php
-'routes' => [
-    'enabled' => true,
-    'prefix' => 'nvl/api/v1',
-    'middleware' => ['api'],
-    'management_middleware' => ['auth'],
-],
-```
-
-It provides list, row update, import, export, and scan endpoints. Entry updates require both `value` and `expectedRevision`. Import/export requests accept bounded configured scope-token lists, `php|json|both`, locale filters, a named export target, and the explicit prune flag. Every non-dry-run API export requires `force=true`; pruning additionally authorizes the independent `prune` ability. Stale revisions and source conflicts return `409`, workspace locks return `423`, and unsafe public inputs return `422`. Applications may add Sanctum, verification, permissions, throttling, or response middleware.
-
-Disable package routes when the consumer owns its management controllers:
-
-```php
-'routes' => [
-    'enabled' => false,
-],
-```
 
 ## Operational workflow
 
@@ -412,163 +285,16 @@ php artisan nvl:translations:status --format=json
 php artisan nvl:translations:doctor --strict --format=json
 ```
 
-## TypeScript, skill, and quality
-
-## Tenant copy overrides
-
-Source scans, imports, updates, and exports are platform-only. Tenant copy uses
-the separate allowlisted override repository and exports private artifacts to
-`tenants/<tenant>/translations/<artifact>.json`; it never rewrites source files
-or mutates Laravel's global translator.
-
-DTOs and enums register with Core's Data provider; configured type generation includes them automatically. Publishing `nvl-translations-skills` installs package-specific agent guidance.
-
-From a standalone checkout of the public Translations repository:
-
-```bash
-composer install
-composer quality
-```
-
-`composer quality` checks Pint formatting, Larastan, and the isolated Testbench/Pest suite.
-
-## Supported PHP usage
-
-The source `@api` declarations identify supported workflows, extension contracts, and value types. Public members marked `@internal` and untagged implementation types remain package-owned. Concrete Actions retain their existing constructors, qualifiers, and `execute()` signatures.
-
-A package model returned or accepted by a public workflow is an identity/result handle. Use its declared type and `getKey()`, `getKeyName()`, `getMorphClass()`, `getRouteKey()`, `getRouteKeyName()`, `is()`, `isNot()`, and `relationLoaded()`. Read only explicitly declared in-memory `@nvl-consumer-read` fields; ordinary model PHPDocs and fillable attributes do not grant consumer reads. Obtain display projections through public reads. Persistence, additional model queries, relation access/loading, and generic model serialization are outside this contract. Host-model queries remain available, while traversal or aggregates of package capability relations require the package public reader or authorized adapter.
-
-## Testing your app
-
-Inject the nine focused catalog/import/export/scan contracts. Existing
-`ImportTranslationsContract`, `ScanTranslationsContract`, and
-`UpdateTranslationEntryContract` remain authoritative; no parallel importer or
-synchronization API is introduced. Concrete workflows retain native arguments,
-array shapes, scanner behavior, and internal execution chains.
-
-```php
-use Nvl\Translations\Contracts\UpdateTranslationEntryContract;
-use Nvl\Translations\Data\UpdateTranslationEntryPayload;
-use Nvl\Translations\Models\TranslationEntry;
-
-final readonly class EditTranslation
-{
-    public function __construct(private UpdateTranslationEntryContract $entries) {}
-
-    public function run(TranslationEntry $entry, UpdateTranslationEntryPayload $data): TranslationEntry
-    {
-        return $this->entries->execute($entry, $data);
-    }
-}
-
-$entry = new TranslationEntry;
-$data = new UpdateTranslationEntryPayload('Hello', 1);
-$entries = Mockery::mock(UpdateTranslationEntryContract::class);
-$entries->shouldReceive('execute')->once()->with($entry, $data)->andReturn($entry);
-$this->app->instance(UpdateTranslationEntryContract::class, $entries);
-expect($this->app->make(EditTranslation::class)->run($entry, $data))->toBe($entry);
-```
-
-The native model is an unsaved identity/result fixture. Use the real import/edit
-workflows on the configured package schema to test revisions, authorization,
-source discovery, and tenant overrides. Use temporary source/output directories
-for real scanners and source-file export tests; `Storage::fake()` applies to
-filesystem-disk operations such as tenant exports. A mocked scan/export result
-does not prove source or file behavior. Consumer tooling is the shipped PHPStan
-extension below; no Suite workbench command is needed.
-
-In Laravel application tests, register a native Mockery interface mock or a small
-implementation with `$this->app->instance(Contract::class, $substitute)` before
-resolving your application service. A host binding installed before package
-registration is retained; later contract replacements affect subsequent
-resolutions. Rebuild previously resolved host services after replacing their
-dependencies. Concrete implementations remain callable with their original
-constructors through major 5. Mocks exercise your application orchestration;
-package authorization, persistence, and external effects need real integration
-tests.
-
-The existing ImportTranslationsContract, ScanTranslationsContract, and UpdateTranslationEntryContract are reused. Six additional selected workflows gain focused contracts without changing scanner/export/import behavior.
-
-For static consumer checks, include the shipped
-[`consumer-audit.neon`](https://github.com/nvl-laravel-suite/core/blob/main/support/consumer-audit.neon) from
-`vendor/nvl/core/support/consumer-audit.neon` in your host PHPStan configuration
-and configure explicit `nvlConsumer.testPaths` for factory-backed tests. The
-extension checks supported APIs and model/query boundaries; it does not prove
-authorization or arbitrary dynamic SQL.
-
-## Shared consumer diagnostics
-
-Run `php artisan nvl:doctor --strict --format=json` to combine the read-only checks from loaded NVL package providers. Errors fail the gate, and strict mode also fails warnings. This package's existing Doctor command remains available and uses the same package-owned inspection service.
-
 
 ## Shared infrastructure options
 
 Set `nvl-translations.locks.store`, or inherit `nvl-core.locks.store` and `cache.default`. The historical `nvl-translations.lock.store` key remains supported for one major cycle and is reported through Core diagnostics. Workspace process locking uses the selected store; `lock.seconds` and `lock.wait_seconds` retain their operation-specific behavior.
 
-## Next major: isolated schema identities
-
-Use `nvl-translations.tables.<logical-key>` for every table and `nvl-translations.connection` for its database connection. Null connection inherits `nvl-core.connection`, then Laravel's default. Tables are resolved at runtime by the package table definition helper.
-
-| Logical key | New default | Previous name |
-| --- | --- | --- |
-| `entries` | `nvl_translations_entries` | `translation_entries` |
-| `scan_runs` | `nvl_translations_scan_runs` | `translation_scan_runs` |
-| `usages` | `nvl_translations_usages` | `translation_usages` |
-| `tenant_overrides` | `nvl_translations_tenant_overrides` | `tenant_translation_overrides` |
-
-Migration filenames contain `nvl_translations_`. Existing installations must complete the upgrade in `UPGRADING.md` before running new migrations. A pending creator rejects an existing target before that owned migration runs; use `nvl:schema:preflight` for an explicit whole-batch check; legacy storage with old history needs an ownership decision.
 
 ## Canonical configuration ownership
 
 Use `nvl-translations` settings in `config/nvl-translations.php` and canonical package environment names. Old generic roots are foreign unless an upgrading NVL host explicitly selects them in Core's default-off compatibility. Canonical false/null/empty values win; no old roots are populated or written back. Keep logical package/resource IDs unchanged. Review [Core's rename inventory and cache/worker cutover](https://github.com/nvl-laravel-suite/core/blob/main/UPGRADING.md#major-5-canonical-configuration-and-environment).
 
-## Testing your app
-
-Inject the supported contract rather than constructing its concrete Action or querying package tables. Replace `Nvl\Translations\Contracts\ScanTranslationsContract` in Laravel's native container for a host-workflow test:
-
-```php
-use Nvl\Translations\Contracts\ScanTranslationsContract;
-
-$double = Mockery::mock(ScanTranslationsContract::class);
-$this->app->instance(ScanTranslationsContract::class, $double);
-// Configure the exact execute arguments and documented return value for your host case.
-```
-
-The package's conditional native binding preserves host substitutions. Production uses the real contract; test doubles do not prove its storage/authorization behavior.
-
-A detached fixture for a returned identity/data handle is:
-
-```php
-use Nvl\Translations\Models\TranslationEntry;
-$fixture = TranslationEntry::factory()->withoutParents()->make();
-```
-
-Ordinary `make()` may persist declared package parents. `withoutParents()->make()` disables parent expansion/admission for detached fixtures; use explicit persisted parents/owners and matching effective connections for a real `create()`. Factories do not authorize workflows, call Stripe, create backing Media objects or publish Template artifacts. Enabled tenancy requires explicit admitted persisted tenants/parents. Your host test installation supplies Faker; no test runner is a runtime package dependency.
-
-Use Laravel `Event::fake()`, `Queue::fake()`, `Mail::fake()` or `Storage::fake()` only for the effects the host test intends to isolate. Use real commits/listeners for timing proof. Add the optional Core consumer boundary rules to host PHPStan:
-
-```neon
-includes:
-    - vendor/nvl/core/support/consumer-audit.neon
-parameters:
-    nvlConsumer:
-        testPaths: [tests]
-        tableNames: []
-        exceptions: []
-```
-
-Rules read installed public metadata without suite boot. They flag internal symbols, package model queries/writes, capability relations and owned tables; they cannot prove dynamic code or runtime authorization. Exact exceptions require `file`, `identifier`, `symbol`, and a documented `reason`. The published 5.x family is verified through the local Dagger release gate on PHP 8.4/Laravel 13, including owning suites, MySQL/PostgreSQL persistence contracts and sealed Tenancy consumers. Fresh public Composer installation, discovery and configuration/route caching are verified. PHP 8.5, Laravel 12, MariaDB and the full independent archive matrix require separate evidence. See the [verification and release policy](https://github.com/nvl-laravel-suite/laravel-suite#verification-and-releases).
-
-### Shipped factory states
-
-These runtime builders keep Laravel's native Factory API. The listed methods name explicit supported parent/owner/lifecycle states; follow each factory's native admission requirements. Detached examples above do not assert persistence validity.
-
-| Factory | Explicit states |
-| --- | --- |
-| [`TenantTranslationOverrideFactory`](database/factories/TenantTranslationOverrideFactory.php) | Native Factory states only |
-| [`TranslationEntryFactory`](database/factories/TranslationEntryFactory.php) | Native Factory states only |
-| [`TranslationScanRunFactory`](database/factories/TranslationScanRunFactory.php) | Native Factory states only |
-| [`TranslationUsageFactory`](database/factories/TranslationUsageFactory.php) | `forScan(TranslationScanRun $parent)` |
 
 ## Error codes and events
 
@@ -589,31 +315,6 @@ The table lists enum discriminators, including any successful codes retained for
 | `scanned` | Exception-defined; see `suggestedStatus()` | Declared safe scalar/array map; otherwise `{}` | `nvl-translations::responsecode.scanned` |
 
 
-## Native owner copy
-
-Configure `nvl-translations.models.override` with a subclass of `TranslationOverride`
-before provider boot. The base declares captured ownership; a host subclass can
-instead declare a native owner column or an exclusive concrete ownership pivot
-using `OwnershipDefinition`. Host column/pivot schemas remain host-owned.
-
-Set `nvl-translations.ownership.scoped=true` and list literal supported keys in
-`nvl-translations.ownership.keys`. Inject `TranslationOverrideRepository` for
-`get($key, $locale)`, `set($key, $locale, $value, $expectedRevision)` and
-`forget($key, $locale, $expectedRevision)` inside an admitted owner execution.
-Revision zero creates; stale updates fail. Equal keys and locales are independent
-across owners. The configured model's create hooks execute on actual writes.
-
-Inject `ExportTranslationOverridesContract` to export to a trusted backend-selected
-disk. It writes a private owner-namespaced JSON artifact with the full canonical
-owner reference. The returned artifact DTO grants no read authority. Source files
-and global catalogs are separate from owner copy and cannot be edited from an
-owner/public-site context.
-
-The Ownership adoption commands stage explicit reviewed historical overrides into
-native storage, preserve IDs, text, revisions and timestamps, and retain the old
-table. Legacy repository/export APIs deny native adopted storage, including when
-someone disables the configuration flag. They are deprecated bridge APIs with the
-migration window described in the Ownership upgrade guide.
 
 ## License
 

@@ -7,7 +7,6 @@ namespace Nvl\Translations\Ownership;
 use Nvl\Support\Ownership\Services\OwnershipResourceRegistry;
 use Nvl\Support\Ownership\ValueObjects\OwnershipDefinition;
 use Nvl\Support\Ownership\ValueObjects\OwnershipResourceDefinition;
-use Nvl\Translations\Compatibility\LegacyTranslationOverrides;
 use Nvl\Translations\Models\TranslationEntry;
 use Nvl\Translations\Models\TranslationScanRun;
 use Nvl\Translations\Models\TranslationUsage;
@@ -29,7 +28,7 @@ final readonly class TranslationsResourceRegistrar
         foreach (['translations.catalog' => TranslationEntry::class, 'translations.usages' => TranslationUsage::class, 'translations.scans' => TranslationScanRun::class] as $key => $model) {
             $resources->register(new OwnershipResourceDefinition($key, 'translations', $model, OwnershipDefinition::unscoped(), allowsCentral: true));
         }
-        $class = $owned ? $this->models->modelClass() : LegacyTranslationOverrides::modelClass();
+        $class = $this->models->modelClass();
         $resources->register(new OwnershipResourceDefinition('translations.overrides', 'translations', $class, $owned ? $class::ownershipDefinition() : OwnershipDefinition::unscoped(), immutableFields: $owned ? ['key', 'locale'] : []));
     }
 }

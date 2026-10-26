@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Nvl\Translations\Console\Commands;
 
 use Illuminate\Console\Command;
-use Nvl\Translations\Actions\Sync\ExportTranslationsAction;
+use Nvl\Support\Enums\SystemActor;
+use Nvl\Translations\Services\TranslationExporter;
 
 /**
  * Removes stale translation artifacts only after an explicit force flag.
@@ -22,7 +23,7 @@ final class TranslationsPruneCommand extends Command
 
     protected $description = 'Prune stale translation files with backups and an explicit confirmation';
 
-    public function handle(ExportTranslationsAction $action): int
+    public function handle(TranslationExporter $action): int
     {
         $dryRun = (bool) $this->option('dry-run');
 
@@ -55,7 +56,7 @@ final class TranslationsPruneCommand extends Command
             return self::FAILURE;
         }
 
-        $result = $action->execute(
+        $result = $action->export(SystemActor::Background,
             $scopes,
             $locales === [] ? null : $locales,
             $format,

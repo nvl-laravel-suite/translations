@@ -6,7 +6,10 @@ namespace Nvl\Translations\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
+use Nvl\Support\Enums\SystemActor;
+use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Models\TranslationEntry;
+use Nvl\Translations\Services\SourceTranslationWorkspace;
 use Nvl\Translations\Services\TranslationScopeResolver;
 
 /**
@@ -20,8 +23,9 @@ final class TranslationsStatusCommand extends Command
 
     protected $description = 'Report translation source profiles and workspace synchronization state';
 
-    public function handle(TranslationScopeResolver $scopes): int
+    public function handle(TranslationScopeResolver $scopes, SourceTranslationWorkspace $workspace): int
     {
+        $workspace->authorize(SystemActor::Background, TranslationsAbility::ListEntries);
         $format = $this->option('format');
         if (! is_string($format) || ! in_array($format, ['text', 'json'], true)) {
             $this->error('Invalid --format option. Allowed values: text, json.');

@@ -13,7 +13,6 @@ use Nvl\Translations\Database\Factories\TranslationEntryFactory;
 use Nvl\Translations\Definitions\Tables\TranslationsTables;
 use Nvl\Translations\Enums\TranslationSyncStatus;
 use Nvl\Translations\Support\TranslationIdentity;
-use Nvl\Translations\Traits\TranslationEntryFilters;
 
 /**
  * Single translation value row scoped by location and locale.
@@ -45,7 +44,6 @@ final class TranslationEntry extends Model
     use HasFactory;
 
     use HasUuids;
-    use TranslationEntryFilters;
 
     protected $table = TranslationsTables::Entries;
 

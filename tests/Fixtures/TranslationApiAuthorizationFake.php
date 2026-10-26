@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Tests\Fixtures;
 
+use Illuminate\Contracts\Auth\Authenticatable;
+use Nvl\Support\Enums\SystemActor;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Models\TranslationEntry;
@@ -23,6 +25,7 @@ final class TranslationApiAuthorizationFake implements TranslationsAuthorization
      */
     public function authorize(
         TranslationsAbility $ability,
+        Authenticatable|SystemActor $actor,
         ?TranslationEntry $entry = null,
     ): void {
         $this->abilities[] = $ability;

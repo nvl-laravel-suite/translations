@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Nvl\Translations\Tests;
 
 use Illuminate\Contracts\Foundation\MaintenanceMode;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Nvl\Data\Providers\DataServiceProvider;
-use Nvl\Filterable\Providers\FilterableServiceProvider;
 use Nvl\Ownership\Contracts\OwnershipAdoptionAccess;
 use Nvl\Ownership\Services\OwnerIdentityResolver;
 use Nvl\Ownership\Services\OwnershipAdoptionCoordinator;
@@ -17,8 +18,10 @@ use Nvl\Ownership\ValueObjects\OwnershipAdoptionPlan;
 use Nvl\Ownership\ValueObjects\OwnershipMapping;
 use Nvl\Ownership\ValueObjects\OwnershipOperation;
 use Nvl\Support\Providers\LocaleServiceProvider;
+use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Providers\TranslationsServiceProvider;
 use Nvl\Translations\Tests\Fixtures\ConfiguredOverride;
+use Nvl\Translations\Tests\Fixtures\TranslationApiAuthorizationFake;
 
 /** Uses native owners and a real nonempty historical copy without outer test transactions. */
 abstract class OwnerScopeTestCase extends OwnershipTestCase
@@ -32,7 +35,7 @@ abstract class OwnerScopeTestCase extends OwnershipTestCase
     /** @return list<class-string> */
     protected function getPackageProviders($app): array
     {
-        return [...parent::getPackageProviders($app), LocaleServiceProvider::class, DataServiceProvider::class, FilterableServiceProvider::class, TranslationsServiceProvider::class];
+        return [...parent::getPackageProviders($app), LocaleServiceProvider::class, DataServiceProvider::class, TranslationsServiceProvider::class];
     }
 
     /** Select one actual configured override class and literal native keys. */
@@ -45,12 +48,21 @@ abstract class OwnerScopeTestCase extends OwnershipTestCase
     /** Rehearse the actual package adoption before admitting either owner. */
     protected function setUp(): void
     {
+        Relation::morphMap([], false);
         parent::setUp();
+        $this->app->instance(TranslationsAuthorization::class, new TranslationApiAuthorizationFake);
         foreach (glob(__DIR__.'/../database/migrations/*.php') ?: [] as $path) {
             (require $path)->up();
         }
-        (require __DIR__.'/../database/tenancy-migrations/2026_09_16_180002_nvl_translations_create_tenant_translation_overrides.php')->up();
-        DB::table('nvl_translations_tenant_overrides')->insert(['id' => self::Override, 'tenant_id' => self::Tenant, 'key' => 'legacy.copy', 'locale' => 'en', 'value' => 'preserved', 'revision' => 9, 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-02 00:00:00']);
+        DB::connection()->getSchemaBuilder()->create('nvl_translations_overrides', static function (Blueprint $table): void {
+            $table->uuid('id')->primary();
+            $table->string('key', 191);
+            $table->string('locale', 35);
+            $table->text('value');
+            $table->unsignedBigInteger('revision')->default(1);
+            $table->timestampsTz();
+        });
+        DB::table('nvl_translations_overrides')->insert(['id' => self::Override, 'key' => 'legacy.copy', 'locale' => 'en', 'value' => 'preserved', 'revision' => 9, 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-02 00:00:00']);
         (require __DIR__.'/../../ownership/database/migrations/ownership/2026_10_18_000001_nvl_ownership_create_adoption_tables.php')->up();
         $this->app->bind(OwnershipAdoptionAccess::class, static fn () => new class implements OwnershipAdoptionAccess
         {
@@ -83,7 +95,7 @@ abstract class OwnerScopeTestCase extends OwnershipTestCase
         $operation = new OwnershipOperation('translations-adopt', 'operator', '1');
         $owner = $this->app->make(OwnerIdentityResolver::class)->reference(Company::findOrFail(7));
         $coordinator = $this->app->make(OwnershipAdoptionCoordinator::class);
-        $this->adoptionPlan = $coordinator->prepare(['translations'], [new OwnershipMapping('translations.overrides', self::Override, $owner, legacyTenantId: self::Tenant)], $operation);
+        $this->adoptionPlan = $coordinator->prepare(['translations'], [new OwnershipMapping('translations.overrides', self::Override, $owner)], $operation);
         while (! $coordinator->backfill($this->adoptionPlan, 100, $operation)) {
         }
         $coordinator->activate($this->adoptionPlan, $operation);

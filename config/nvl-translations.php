@@ -8,19 +8,9 @@ use Nvl\Translations\Models\TranslationOverride;
 return [
     'models' => ['override' => TranslationOverride::class],
     'ownership' => ['scoped' => true, 'keys' => []],
-    'routes' => [
-        'enabled' => false,
-        'prefix' => 'nvl/api/v1',
-        'middleware' => ['api'],
-        'management_middleware' => ['auth'],
-    ],
 
     'migrations' => [
         'enabled' => true,
-    ],
-
-    'tenant_overrides' => [
-        'keys' => [],
     ],
 
     'authorization' => [

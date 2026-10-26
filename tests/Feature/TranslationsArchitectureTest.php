@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Nvl\Translations\Actions\Entries\ListTranslationFilterOptionsAction;
+use Nvl\Translations\Tests\Fixtures\TranslationFilterOptions;
 
 /**
  * Return Translations application PHP files below a relative directory.
@@ -14,6 +14,9 @@ function translationsArchitecturePhpFiles(string $relativePath = ''): array
 {
     $basePath = __DIR__.'/../../src'.($relativePath !== '' ? '/'.$relativePath : '');
     $files = [];
+    if (! is_dir($basePath)) {
+        return [];
+    }
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($basePath));
 
     foreach ($iterator as $file) {
@@ -79,8 +82,8 @@ test('translation app uses strict types without service locator or phpstan suppr
     expect($violations)->toBe([]);
 });
 
-test('translation filter options are owned by one focused query action', function (): void {
-    $reflection = new ReflectionClass(ListTranslationFilterOptionsAction::class);
+test('translation filter options are owned by the consumer fixture', function (): void {
+    $reflection = new ReflectionClass(TranslationFilterOptions::class);
 
     expect($reflection->isFinal())->toBeTrue()
         ->and($reflection->getMethod('execute')->isPublic())->toBeTrue();

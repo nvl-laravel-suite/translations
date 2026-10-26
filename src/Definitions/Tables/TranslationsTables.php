@@ -19,8 +19,6 @@ final class TranslationsTables
 
     public const string OwnerOverrides = 'nvl_translations_overrides';
 
-    public const string TenantOverrides = 'nvl_translations_tenant_overrides';
-
     public const string TRANSLATION_ENTRIES = self::Entries;
 
     public const string TRANSLATION_SCAN_RUNS = self::ScanRuns;
