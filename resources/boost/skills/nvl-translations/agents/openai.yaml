@@ -1,0 +1,4 @@
+interface:
+  display_name: "NVL Translations"
+  short_description: "Scan, edit, import and export translation catalogs"
+  default_prompt: "Use $nvl-translations with native services and consumer-owned presentation."

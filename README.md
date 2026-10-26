@@ -113,7 +113,8 @@ php artisan nvl:translations:sync --scope=app --scope=custom:shared --format=bot
 Programmatic use:
 
 ```php
-$result = app(ImportTranslationsContract::class)->execute(
+$result = app(\Nvl\Translations\Services\TranslationImporter::class)->import(
+    actor: $actor,
     scopeTokens: ['app'],
     format: 'both',
 );
@@ -174,7 +175,8 @@ php artisan nvl:translations:export --scope=app --target=generated --format=both
 Programmatic use:
 
 ```php
-$result = app(ExportTranslationsContract::class)->execute(
+$result = app(\Nvl\Translations\Services\TranslationExporter::class)->export(
+    actor: $actor,
     scopeTokens: ['app'],
     locales: ['en', 'bg'],
     format: 'both',

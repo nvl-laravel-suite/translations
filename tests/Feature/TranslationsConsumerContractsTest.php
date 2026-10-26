@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Nvl\Support\Enums\SystemActor;
-use Nvl\Support\Http\PackageExceptionRenderer;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Exceptions\InvalidTranslationInputException;
@@ -24,6 +23,7 @@ use Nvl\Translations\Services\TranslationCatalog;
 use Nvl\Translations\Services\TranslationsDoctor;
 use Nvl\Translations\Support\TranslationConfiguration;
 use Nvl\Translations\Support\TranslationValueHash;
+use Nvl\Translations\Tests\Fixtures\ConsumerSupport\PackageExceptionRenderer;
 use Nvl\Translations\Tests\Fixtures\StringOrList;
 
 beforeEach(function (): void {

@@ -8,7 +8,6 @@ use Illuminate\Contracts\Foundation\MaintenanceMode;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
-use Nvl\Data\Providers\DataServiceProvider;
 use Nvl\Ownership\Contracts\OwnershipAdoptionAccess;
 use Nvl\Ownership\Services\OwnerIdentityResolver;
 use Nvl\Ownership\Services\OwnershipAdoptionCoordinator;
@@ -22,6 +21,7 @@ use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Providers\TranslationsServiceProvider;
 use Nvl\Translations\Tests\Fixtures\ConfiguredOverride;
 use Nvl\Translations\Tests\Fixtures\TranslationApiAuthorizationFake;
+use Spatie\LaravelData\LaravelDataServiceProvider as DataServiceProvider;
 
 /** Uses native owners and a real nonempty historical copy without outer test transactions. */
 abstract class OwnerScopeTestCase extends OwnershipTestCase

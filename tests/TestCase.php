@@ -6,13 +6,13 @@ namespace Nvl\Translations\Tests;
 
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Nvl\Data\Providers\DataServiceProvider;
 use Nvl\Support\Providers\LocaleServiceProvider;
 use Nvl\Support\Providers\SupportServiceProvider;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Providers\TranslationsServiceProvider;
 use Nvl\Translations\Tests\Fixtures\TranslationApiAuthorizationFake;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Spatie\LaravelData\LaravelDataServiceProvider as DataServiceProvider;
 
 /**
  * Boots Translations and its runtime dependencies in an isolated Laravel application.

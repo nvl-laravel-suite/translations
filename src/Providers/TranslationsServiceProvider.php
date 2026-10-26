@@ -47,6 +47,9 @@ final class TranslationsServiceProvider extends ServiceProvider implements Owner
             $this->registerCommands();
         }
 
+        $this->publishes([
+            __DIR__.'/../../resources/boost/skills' => base_path('.agents/skills'),
+        ], 'nvl-translations-skills');
         $this->registerTranslations();
         $this->registerConfig();
         $this->publishesMigrations([

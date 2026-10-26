@@ -9,7 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as LaravelResponse;
 use Nvl\Support\Contracts\RespondableException;
-use Nvl\Support\Http\PackageExceptionPayload;
+use Nvl\Translations\Tests\Fixtures\ConsumerSupport\PackageExceptionPayload;
 use Symfony\Component\HttpFoundation\Response;
 
 /** Preserves the native Translations envelope on already enabled package routes. */
