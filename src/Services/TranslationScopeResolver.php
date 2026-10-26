@@ -73,14 +73,7 @@ final class TranslationScopeResolver
      */
     public function resolveScopes(array $scopeTokens): array
     {
-        if (! array_is_list($scopeTokens) || count($scopeTokens) > 100) {
-            throw new InvalidTranslationInputException('Scopes require a bounded list.');
-        }
-        foreach ($scopeTokens as $token) {
-            if (! is_string($token) || strlen($token) > 255) {
-                throw new InvalidTranslationInputException('Scope tokens require bounded strings.');
-            }
-        }
+        $this->validateTokens($scopeTokens);
         $all = $this->discoverScopes();
 
         if ($scopeTokens === []) {
@@ -260,9 +253,20 @@ final class TranslationScopeResolver
         return $scope?->type === TranslationScopeType::Module ? $scope->name : null;
     }
 
-    /**
-     * @return list<TranslationScope>
-     */
+    /** @param array<array-key, mixed> $scopeTokens */
+    private function validateTokens(array $scopeTokens): void
+    {
+        if (! array_is_list($scopeTokens) || count($scopeTokens) > 100) {
+            throw new InvalidTranslationInputException('Scopes require a bounded list.');
+        }
+        foreach ($scopeTokens as $token) {
+            if (! is_string($token) || strlen($token) > 255) {
+                throw new InvalidTranslationInputException('Scope tokens require bounded strings.');
+            }
+        }
+    }
+
+    /** @return list<TranslationScope> */
     private function discoverModuleScopes(): array
     {
         $configuredRoots = config('nvl-translations.module_roots', []);

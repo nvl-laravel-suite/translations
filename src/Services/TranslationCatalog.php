@@ -56,12 +56,7 @@ final class TranslationCatalog
     public function update(Authenticatable|SystemActor $actor, TranslationEntry|string $entry, array $data): TranslationEntry
     {
         $this->workspace->authorize($actor, TranslationsAbility::UpdateEntry, $entry instanceof TranslationEntry ? $entry : null);
-        if (array_diff(array_keys($data), ['value', 'expectedRevision']) !== [] || ! array_key_exists('value', $data) || ($data['value'] !== null && ! is_string($data['value'])) || ! isset($data['expectedRevision']) || ! is_int($data['expectedRevision']) || $data['expectedRevision'] < 1) {
-            throw new InvalidTranslationInputException('A nullable string value and positive integer expectedRevision are required.');
-        }
-        if ($data['value'] !== null && ! mb_check_encoding($data['value'], 'UTF-8')) {
-            throw new InvalidTranslationInputException('Translation values must contain valid UTF-8 text.');
-        }
+        $data = $this->validatedUpdate($data);
 
         if ($entry instanceof TranslationEntry && (! $entry->exists || $entry->getConnection() !== (new TranslationEntry)->getConnection() || $entry->getRawOriginal($entry->getKeyName()) !== $entry->getKey())) {
             throw new InvalidTranslationInputException('Translation entries require their persisted source identity.');
@@ -93,13 +88,36 @@ final class TranslationCatalog
 
                 $model->refresh();
 
-                $this->domainEvents->dispatch(new TranslationEntryUpdated($model->toArray()), $model->getConnection());
+                $facts = [];
+                foreach ($model->toArray() as $key => $value) {
+                    if (! is_string($key)) {
+                        throw new InvalidTranslationInputException('Translation facts require named attributes.');
+                    }
+                    $facts[$key] = $value;
+                }
+                $this->domainEvents->dispatch(new TranslationEntryUpdated($facts), $model->getConnection());
 
                 return $model;
             }),
         );
 
         return $updated;
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $data
+     * @return array{value: string|null, expectedRevision: int}
+     */
+    private function validatedUpdate(array $data): array
+    {
+        if (array_diff(array_keys($data), ['value', 'expectedRevision']) !== [] || ! array_key_exists('value', $data) || ($data['value'] !== null && ! is_string($data['value'])) || ! isset($data['expectedRevision']) || ! is_int($data['expectedRevision']) || $data['expectedRevision'] < 1) {
+            throw new InvalidTranslationInputException('A nullable string value and positive integer expectedRevision are required.');
+        }
+        if ($data['value'] !== null && ! mb_check_encoding($data['value'], 'UTF-8')) {
+            throw new InvalidTranslationInputException('Translation values must contain valid UTF-8 text.');
+        }
+
+        return ['value' => $data['value'], 'expectedRevision' => $data['expectedRevision']];
     }
 
     /**

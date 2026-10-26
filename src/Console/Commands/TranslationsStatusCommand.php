@@ -56,6 +56,7 @@ final class TranslationsStatusCommand extends Command
             ->selectRaw('sync_status, COUNT(*) AS aggregate')
             ->groupBy('sync_status')
             ->orderBy('sync_status')
+            ->toBase()
             ->pluck('aggregate', 'sync_status')
             ->map(static fn (mixed $count): int => is_numeric($count) ? (int) $count : 0)
             ->all();

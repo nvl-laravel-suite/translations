@@ -159,6 +159,7 @@ final readonly class TranslationsDoctor
         return $checks;
     }
 
+    /** @return array{key:string, severity:string, passed:bool, message:string} */
     private function scopeCheck(): array
     {
         try {
@@ -180,6 +181,7 @@ final readonly class TranslationsDoctor
         }
     }
 
+    /** @return array{key:string, severity:string, passed:bool, message:string} */
     private function backupCheck(): array
     {
         if (! (bool) config('nvl-translations.backup.enabled', true)) {
@@ -216,6 +218,7 @@ final readonly class TranslationsDoctor
         }
     }
 
+    /** @return array{key:string, severity:string, passed:bool, message:string} */
     private function authorizationCheck(): array
     {
         $configuredAbility = config('nvl-translations.authorization.ability');
@@ -240,6 +243,7 @@ final readonly class TranslationsDoctor
         ];
     }
 
+    /** @return array{key:string, severity:string, passed:bool, message:string} */
     private function scannerCheck(): array
     {
         try {
@@ -261,6 +265,7 @@ final readonly class TranslationsDoctor
         }
     }
 
+    /** @return array{key:string, severity:string, passed:bool, message:string} */
     private function exportTargetsCheck(): array
     {
         try {
@@ -305,6 +310,7 @@ final readonly class TranslationsDoctor
         }
     }
 
+    /** @return array{key:string, severity:string, passed:bool, message:string} */
     private function lockCheck(): array
     {
         try {
