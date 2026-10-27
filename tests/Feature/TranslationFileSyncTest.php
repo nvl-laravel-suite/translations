@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -478,4 +479,64 @@ test('native source operations reject denied actors before protected reads and w
     }
     expect($connection->getQueryLog())->toBeEmpty();
     $connection->disableQueryLog();
+});
+
+test('source export cannot outlive a rolled back catalog edit', function (): void {
+    File::put($this->translationSource.'/en.json', '{"Save":"Original"}');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
+    $entry = TranslationEntry::query()->where('key', 'Save')->firstOrFail();
+    $connection = $entry->getConnection();
+    expect($connection->transactionLevel())->toBe(0);
+    $connection->beginTransaction();
+    try {
+        app(TranslationCatalog::class)->update(SystemActor::Background, $entry->id, ['value' => 'Uncommitted edit', 'expected_revision' => $entry->revision]);
+        expect(fn () => app(TranslationExporter::class)->export(SystemActor::Background, ['app'], ['en'], 'json', 'source'))
+            ->toThrow(TranslationsException::class, 'outside an existing catalog database transaction');
+    } finally {
+        $connection->rollBack();
+    }
+    expect($entry->fresh()->value)->toBe('Original')
+        ->and(json_decode(File::get($this->translationSource.'/en.json'), true))->toBe(['Save' => 'Original']);
+    app(TranslationCatalog::class)->update(SystemActor::Background, $entry->id, ['value' => 'Committed edit', 'expected_revision' => $entry->revision]);
+    app(TranslationExporter::class)->export(SystemActor::Background, ['app'], ['en'], 'json', 'source');
+    expect(json_decode(File::get($this->translationSource.'/en.json'), true))->toBe(['Save' => 'Committed edit'])
+        ->and($entry->fresh()->sync_status->value)->toBe('synchronized');
+});
+
+test('export dry runs preserve ambient catalog edits without publishing files', function (): void {
+    File::put($this->translationSource.'/en.json', '{"Save":"Original"}');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
+    $entry = TranslationEntry::query()->where('key', 'Save')->firstOrFail();
+    $connection = $entry->getConnection();
+    $connection->beginTransaction();
+    try {
+        app(TranslationCatalog::class)->update(SystemActor::Background, $entry->id, ['value' => 'Uncommitted edit', 'expected_revision' => $entry->revision]);
+        $result = app(TranslationExporter::class)->export(SystemActor::Background, ['app'], ['en'], 'json', 'source', false, true);
+        expect($result['files'])->toBe(1)
+            ->and($entry->fresh()->value)->toBe('Uncommitted edit')
+            ->and(json_decode(File::get($this->translationSource.'/en.json'), true))->toBe(['Save' => 'Original'])
+            ->and($connection->transactionLevel())->toBe(1);
+    } finally {
+        $connection->rollBack();
+    }
+    expect($entry->fresh()->value)->toBe('Original');
+});
+
+test('export checks its configured catalog source connection before filesystem effects', function (): void {
+    File::put($this->translationSource.'/en.json', '{"Save":"Original"}');
+    $name = 'translation-export-source';
+    config()->set('database.connections.'.$name, ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
+    config()->set('nvl-translations.storage.connection', $name);
+    $connection = (new TranslationEntry)->getConnection();
+    expect($connection->getName())->toBe($name);
+    $connection->beginTransaction();
+    try {
+        expect(fn () => app(TranslationExporter::class)->export(SystemActor::Background, ['app'], ['en'], 'json', 'source'))
+            ->toThrow(TranslationsException::class, 'outside an existing catalog database transaction');
+    } finally {
+        $connection->rollBack();
+    }
+    expect(DB::transactionLevel())->toBe(0)
+        ->and(File::get($this->translationSource.'/en.json'))->toBe('{"Save":"Original"}')
+        ->and(File::isDirectory($this->translationSyncRoot.'/backups'))->toBeFalse();
 });

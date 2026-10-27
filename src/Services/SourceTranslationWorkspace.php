@@ -7,6 +7,7 @@ namespace Nvl\Translations\Services;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
+use Nvl\Support\Auth\CanonicalActorResolver;
 use Nvl\Support\Enums\SystemActor;
 use Nvl\Support\Ownership\Enums\OwnershipContextMode;
 use Nvl\Support\Ownership\Exceptions\OwnershipViolation;
@@ -23,13 +24,16 @@ use Nvl\Translations\Models\TranslationEntry;
 final readonly class SourceTranslationWorkspace
 {
     /** Resolve current native state at each operation and admit the unowned source workspace. */
-    public function __construct(private OwnershipContextResolver $ownership, private TranslationsAuthorization $authorization) {}
+    public function __construct(private OwnershipContextResolver $ownership, private TranslationsAuthorization $authorization, private CanonicalActorResolver $actors) {}
 
     /** Deny before catalog or filesystem access from any admitted owner or public site. */
     public function authorize(Authenticatable|SystemActor $actor, TranslationsAbility $ability, ?TranslationEntry $entry = null): void
     {
-        if ($actor instanceof Authenticatable && (! $actor instanceof Model || ! $actor->exists || $actor->getKey() === null || $actor->getRawOriginal($actor->getKeyName()) !== $actor->getKey() || ! $actor->newQuery()->whereKey($actor->getKey())->exists())) {
-            throw new AuthorizationException('Translation actors must be persisted models.');
+        if ($actor instanceof Authenticatable) {
+            if (! $actor instanceof Model) {
+                throw new AuthorizationException('Translation actors must be persisted models.');
+            }
+            $actor = $this->actors->resolve($actor);
         }
         $this->authorization->authorize($ability, $actor, $entry);
         $snapshot = $this->ownership->current()->snapshot();

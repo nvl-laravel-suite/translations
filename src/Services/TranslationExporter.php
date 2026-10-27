@@ -60,6 +60,9 @@ final class TranslationExporter
         if ($prune) {
             $this->workspace->authorize($actor, TranslationsAbility::Prune);
         }
+        if (! $dryRun && (new TranslationEntry)->getConnection()->transactionLevel() !== 0) {
+            throw new TranslationsException('Translation export must start outside an existing catalog database transaction.');
+        }
         $result = $this->lock->execute('export', function () use ($actor, $scopeTokens, $locales, $format, $target, $prune, $dryRun): array {
             $connection = (new TranslationEntry)->getConnection();
             if ($dryRun) {

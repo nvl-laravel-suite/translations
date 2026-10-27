@@ -9,14 +9,30 @@ use Nvl\Ownership\Services\OwnershipRunner;
 use Nvl\Ownership\Tests\Fixtures\Actor;
 use Nvl\Ownership\Tests\Fixtures\Company;
 use Nvl\Support\Enums\SystemActor;
+use Nvl\Support\Ownership\Contracts\OwnershipWriter;
 use Nvl\Support\Ownership\Exceptions\OwnershipException;
 use Nvl\Translations\Contracts\TranslationOverrideRepository;
 use Nvl\Translations\Enums\TranslationsAbility;
+use Nvl\Translations\Models\TranslationOverride;
 use Nvl\Translations\Services\SourceTranslationWorkspace;
+use Nvl\Translations\Services\TranslationOverrideModels;
 use Nvl\Translations\Tests\Fixtures\ConfiguredOverride;
 use Nvl\Translations\Tests\OwnerScopeTestCase;
 
 uses(OwnerScopeTestCase::class);
+
+it('keeps override factories on the frozen configured model after a config change', function (): void {
+    app(OwnershipRunner::class)->run(Company::findOrFail(7), Actor::findOrFail(1), function (): void {
+        $selected = app(TranslationOverrideModels::class)->modelClass();
+        expect(TranslationOverride::factory()->make())->toBeInstanceOf(ConfiguredOverride::class);
+        config(['nvl-translations.models.override' => TranslationOverride::class]);
+        expect(TranslationOverride::factory()->make())->toBeInstanceOf(ConfiguredOverride::class)
+            ->and(app(TranslationOverrideModels::class)->modelClass())->toBe($selected);
+        $row = app(OwnershipWriter::class)->create($selected, fn (array $ownership) => TranslationOverride::factory()->state([...$ownership, 'value' => 'factory'])->create());
+        expect($row)->toBeInstanceOf(ConfiguredOverride::class)
+            ->and($row->fresh()->value)->toBe('FACTORY');
+    });
+});
 
 it('isolates equal override keys and uses the configured class and private owner export', function (): void {
     Storage::fake('local');

@@ -1,6 +1,8 @@
 # NVL Translations
 
 Native Laravel 13 translation catalog scanning, editing, import and export. Requires PHP 8.4 and `nvl/core:^6.0`; `nvl/ownership:^6.0` optionally isolates owner copy overrides. Use `nvl/translatable` for localized Eloquent content.
+Eloquent actors are reloaded from their class-defined canonical storage before source-workspace policies inspect them. Dirty keys, altered storage, detached actors and unavailable rows reject; caller attributes and loaded relations do not carry policy privileges. These entry points retain their persisted Eloquent-actor requirement; the host policy still decides access. Explicit system actors remain subject to that policy.
+
 
 ## Native API
 
@@ -195,6 +197,8 @@ Exports:
 - apply sibling-file atomic replacements as one backed-up batch and restore original contents if a later operation fails;
 - preserve existing file permissions when possible;
 - never write outside the configured scope target.
+
+A non-dry-run export must start outside an existing transaction on the actual `TranslationEntry` connection. The service rejects an ambient catalog transaction before source synchronization, backups or file publication; its immediate filesystem result cannot be undone by a caller’s later database rollback. This applies to source and named destinations. Dry runs may simulate the export inside an ambient transaction and restore their own nested changes without publishing files.
 
 Every export performs a fresh authoritative-source read first. Export stops when that read is incomplete, including when best-effort importing is enabled, so an unreadable source file cannot be overwritten from a partial workspace.
 

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Nvl\Translations\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Nvl\Support\Models\ConfiguredModelResolver;
 use Nvl\Support\Ownership\Exceptions\OwnershipConfigurationInvalid;
 use Nvl\Translations\Models\TranslationOverride;
+use Nvl\Translations\Services\TranslationOverrideModels;
 
 /**
  * Creates an allowed override using the same configured model and ownership boundary.
@@ -21,12 +21,7 @@ final class TranslationOverrideFactory extends Factory
     /** @return class-string<TranslationOverride> */
     public function modelName(): string
     {
-        $class = config('nvl-translations.models.override', TranslationOverride::class);
-        if (! is_string($class)) {
-            throw new OwnershipConfigurationInvalid('Override factory requires a configured model class.');
-        }
-
-        return (new ConfiguredModelResolver)->resolve($class, TranslationOverride::class);
+        return app(TranslationOverrideModels::class)->modelClass();
     }
 
     /** @return array{key:string, locale:string, value:string, revision:int} */
