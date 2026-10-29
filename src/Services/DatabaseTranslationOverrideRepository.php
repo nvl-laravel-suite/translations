@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Nvl\Support\Auth\CanonicalActorResolver;
 use Nvl\Support\Enums\SystemActor;
 use Nvl\Support\Ownership\Contracts\OwnershipBoundary;
 use Nvl\Support\Ownership\Contracts\OwnershipWriter;
@@ -20,7 +21,9 @@ use Nvl\Support\Ownership\Services\OwnershipContextResolver;
 use Nvl\Translations\Contracts\TranslationOverrideRepository;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Enums\TranslationsAbility;
+use Nvl\Translations\Exceptions\InvalidTranslationInputException;
 use Nvl\Translations\Exceptions\StaleTranslationWorkspaceException;
+use Nvl\Translations\Exceptions\TranslationsException;
 use Nvl\Translations\Models\TranslationOverride;
 
 /**
@@ -31,7 +34,7 @@ use Nvl\Translations\Models\TranslationOverride;
 final readonly class DatabaseTranslationOverrideRepository implements TranslationOverrideRepository
 {
     /** Retain neutral boundaries and canonical model metadata. */
-    public function __construct(private OwnershipBoundary $boundary, private OwnershipWriter $writer, private TranslationOverrideModels $models, private TranslationOverrideKeys $keys, private OwnershipConstraintInspector $constraints, private OwnershipContextResolver $context, private Factory $files, private TranslationsAuthorization $authorization) {}
+    public function __construct(private OwnershipBoundary $boundary, private OwnershipWriter $writer, private TranslationOverrideModels $models, private TranslationOverrideKeys $keys, private OwnershipConstraintInspector $constraints, private OwnershipContextResolver $context, private Factory $files, private TranslationsAuthorization $authorization, private CanonicalActorResolver $actors) {}
 
     /** Read one allowed owner-scoped value. */
     public function get(Authenticatable|SystemActor $actor, string $key, string $locale): ?string
@@ -49,6 +52,9 @@ final readonly class DatabaseTranslationOverrideRepository implements Translatio
         if ($expectedRevision < 0 || $expectedRevision >= PHP_INT_MAX) {
             throw new InvalidArgumentException('Override revisions require a nonnegative bounded integer.');
         }
+        if (! mb_check_encoding($value, 'UTF-8')) {
+            throw new InvalidTranslationInputException('Translation values must contain valid UTF-8 text.');
+        }
         $query = $this->query($key, $locale);
         if ($expectedRevision === 0) {
             $class = $this->models->modelClass();
@@ -65,18 +71,34 @@ final readonly class DatabaseTranslationOverrideRepository implements Translatio
                 throw StaleTranslationWorkspaceException::forEntry($key.':'.$locale);
             }
         }
-        if ($query->where('revision', $expectedRevision)->update(['value' => $value, 'revision' => $expectedRevision + 1, 'updated_at' => now()]) !== 1) {
-            throw StaleTranslationWorkspaceException::forEntry($key.':'.$locale);
-        }
+        $query->getModel()->getConnection()->transaction(function () use ($query, $key, $locale, $value, $expectedRevision): void {
+            $model = $query->where('revision', $expectedRevision)->lockForUpdate()->first();
+            if (! $model instanceof TranslationOverride) {
+                throw StaleTranslationWorkspaceException::forEntry($key.':'.$locale);
+            }
+            if (! $model->forceFill(['value' => $value, 'revision' => $expectedRevision + 1])->save()) {
+                throw new TranslationsException('The translation override update was rejected by its model.');
+            }
+        });
     }
 
     /** Delete only the expected current-owner row. */
     public function forget(Authenticatable|SystemActor $actor, string $key, string $locale, int $expectedRevision): void
     {
         $this->authorize($actor, TranslationsAbility::UpdateEntry);
-        if ($expectedRevision < 1 || $this->query($key, $locale)->where('revision', $expectedRevision)->delete() !== 1) {
+        if ($expectedRevision < 1) {
             throw StaleTranslationWorkspaceException::forEntry($key.':'.$locale);
         }
+        $query = $this->query($key, $locale);
+        $query->getModel()->getConnection()->transaction(function () use ($query, $key, $locale, $expectedRevision): void {
+            $model = $query->where('revision', $expectedRevision)->lockForUpdate()->first();
+            if (! $model instanceof TranslationOverride) {
+                throw StaleTranslationWorkspaceException::forEntry($key.':'.$locale);
+            }
+            if (! $model->delete()) {
+                throw new TranslationsException('The translation override deletion was rejected by its model.');
+            }
+        });
     }
 
     /** Validate the exact source and live identity uniqueness before reading or mutating.
@@ -118,8 +140,11 @@ final readonly class DatabaseTranslationOverrideRepository implements Translatio
 
     private function authorize(Authenticatable|SystemActor $actor, TranslationsAbility $ability): void
     {
-        if ($actor instanceof Authenticatable && (! $actor instanceof Model || ! $actor->exists || $actor->getKey() === null || $actor->getRawOriginal($actor->getKeyName()) !== $actor->getKey() || ! $actor->newQuery()->whereKey($actor->getKey())->exists())) {
-            throw new AuthorizationException('Translation actors must be persisted models.');
+        if ($actor instanceof Authenticatable) {
+            if (! $actor instanceof Model) {
+                throw new AuthorizationException('Translation actors must be persisted models.');
+            }
+            $actor = $this->actors->resolve($actor);
         }
         $this->authorization->authorize($ability, $actor);
     }

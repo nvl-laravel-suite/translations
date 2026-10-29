@@ -11,4 +11,6 @@ Consumers own DTOs, Actions, controllers, routes, resources and frontend types. 
 
 Keep revision checks, closed mutation fields, scope authorization, locks, path containment, dry runs and atomic file publication inside the service. Preserve omission versus explicit null when updating values. Keep PHP language files and JSON translation keys separate and retain the documented conflict policy during import/export.
 
+Export locale discovery and artifact compilation read the writer connection after synchronization. Owner overrides reload canonical authenticated actors before policy evaluation, require valid UTF-8 values, and preserve configured model casts and lifecycle hooks through locked, revision-checked updates and deletes. Keep these operations on the actual model connection and preserve enclosing transaction rollback.
+
 Use the packaged console commands for host scheduling and CLI workflows. See the package README for supported scopes, locales, formats and source/target configuration. Package installation preserves unowned operation; select native Ownership explicitly when isolation is required. No deprecated Tenancy bridge is shipped.

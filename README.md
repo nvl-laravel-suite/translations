@@ -1,6 +1,6 @@
 # NVL Translations
 
-Native Laravel 13 translation catalog scanning, editing, import and export. Requires PHP 8.4 and `nvl/core:^6.0`; `nvl/ownership:^6.0` optionally isolates owner copy overrides. Use `nvl/translatable` for localized Eloquent content.
+Native Laravel 13 translation catalog scanning, editing, import and export. Requires PHP 8.4 and `nvl/core:^7.0`; `nvl/ownership:^7.0` optionally isolates owner copy overrides. Use `nvl/translatable` for localized Eloquent content.
 Eloquent actors are reloaded from their class-defined canonical storage before source-workspace policies inspect them. Dirty keys, altered storage, detached actors and unavailable rows reject; caller attributes and loaded relations do not carry policy privileges. These entry points retain their persisted Eloquent-actor requirement; the host policy still decides access. Explicit system actors remain subject to that policy.
 
 
@@ -23,12 +23,14 @@ Import and export use configured scope tokens and named destinations, never arbi
 
 `TranslationOverrideRepository` provides `get($actor, $key, $locale)`, `set($actor, $key, $locale, $value, $expectedRevision)`, `forget($actor, $key, $locale, $expectedRevision)` and `export($actor, $disk)` inside an admitted native owner context. Exports are private and return owner identity, disk, path, SHA-256 and size. Revision zero creates an override; positive revisions perform conditional changes. Configure literal `ownership.keys` and the optional override model before provider boot. Native adoption accepts reviewed mappings over populated native storage.
 
+Every override operation reloads authenticated actors from canonical writer storage before policy evaluation. Override values must be valid UTF-8. Revision-checked updates and deletes lock on the configured model connection and preserve model casts and lifecycle hooks, including rejection and caller rollback.
+
 HTTP controllers, requests, editor projections, select options and frontend types belong to applications. The package publishes no management routes or consumer type metadata. Active HTTP regression fixtures demonstrate application adaptation under `tests/Fixtures` and are excluded from the package archive.
 
 ## Installation
 
 ```bash
-composer require nvl/translations:^6.0
+composer require nvl/translations:^7.0
 php artisan migrate
 ```
 
@@ -202,6 +204,8 @@ A non-dry-run export must start outside an existing transaction on the actual `T
 
 Every export performs a fresh authoritative-source read first. Export stops when that read is incomplete, including when best-effort importing is enabled, so an unreadable source file cannot be overwritten from a partial workspace.
 
+Export locale discovery and PHP/JSON catalog reads use the writer connection after synchronization, preventing a lagging replica from replacing current edits with stale values.
+
 Exporting to `source` updates the synchronization hash because the imported source was replaced. Exporting to another named target does not alter source tracking, so a later source import still preserves unexported database edits.
 
 
@@ -294,12 +298,12 @@ php artisan nvl:translations:doctor --strict --format=json
 
 ## Shared infrastructure options
 
-Set `nvl-translations.locks.store`, or inherit `nvl-core.locks.store` and `cache.default`. The historical `nvl-translations.lock.store` key remains supported for one major cycle and is reported through Core diagnostics. Workspace process locking uses the selected store; `lock.seconds` and `lock.wait_seconds` retain their operation-specific behavior.
+Set `nvl-translations.locks.store`, or inherit `nvl-core.locks.store` and `cache.default`. Workspace process locking uses the selected store; `lock.seconds` and `lock.wait_seconds` retain their operation-specific behavior. Configure the catalog connection with `nvl-translations.connection`.
 
 
 ## Canonical configuration ownership
 
-Use `nvl-translations` settings in `config/nvl-translations.php` and canonical package environment names. Old generic roots are foreign unless an upgrading NVL host explicitly selects them in Core's default-off compatibility. Canonical false/null/empty values win; no old roots are populated or written back. Keep logical package/resource IDs unchanged. Review [Core's rename inventory and cache/worker cutover](https://github.com/nvl-laravel-suite/core/blob/main/UPGRADING.md#major-5-canonical-configuration-and-environment).
+Use `nvl-translations` settings in `config/nvl-translations.php` and canonical package environment names. Legacy configuration aliases are removed. Keep logical package/resource IDs unchanged, rebuild configuration caches and restart workers after configuration changes.
 
 
 ## Error codes and events

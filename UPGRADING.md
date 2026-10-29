@@ -1,8 +1,12 @@
 # Upgrading NVL Translations to Light
 
-Upgrade the selected dependency graph together on Laravel 13 and Testbench 11. The intermediate package family remains 6 until the coordinated family version change.
+Upgrade the selected dependency graph together to 7.x on Laravel 13 and Testbench 11.
 
-Replace Action/DTO contracts with `TranslationImporter::import`, `TranslationExporter::export`, `TranslationScanner::scan`, and `TranslationCatalog::{paginate,update,statistics,unused}`. Inputs use native scalars and documented arrays; update requires the `value` key (nullable) and a positive `expectedRevision`. Pass an explicit persisted `Authenticatable` or `SystemActor` and bind the host authorization policy. A system identity grants no permission by itself.
+Replace Action/DTO contracts with `TranslationImporter::import`, `TranslationExporter::export`, `TranslationScanner::scan`, and `TranslationCatalog::{paginate,update,statistics,unused}`. Inputs use native scalars and documented arrays; update requires the `value` key (nullable) and a positive `expected_revision`. Pass an explicit persisted `Authenticatable` or `SystemActor` and bind the host authorization policy. A system identity grants no permission by itself.
+
+Owner overrides now evaluate policy using canonical persisted actor facts and reject invalid UTF-8 values before persistence. Updates and deletes honor configured model casts and lifecycle hooks inside revision-checked transactions on the model connection. Hook failures roll back; enclosing application transactions remain supported.
+
+Exports read locales and PHP/JSON catalog values from the writer after source synchronization. A lagging read replica cannot replace current edits with stale values. Configure source storage with `nvl-translations.connection` and process lock storage with `nvl-translations.locks.store`; legacy aliases are removed. These service fixes require no schema migration.
 
 Source roots and export destinations remain configured and path-guarded. Export returns counts plus a list of artifact paths. Keep application-owned HTTP validation, responses, editor/select projections and type generation in the host. Package routes, DTOs, Action interfaces, frontend metadata and legacy Tenancy integration are removed.
 

@@ -57,6 +57,39 @@ afterEach(function (): void {
     File::deleteDirectory($this->translationSyncRoot);
 });
 
+test('exports current catalog edits rather than stale read replica values', function (string $format, string $target): void {
+    $connection = (new TranslationEntry)->getConnection();
+    if ($connection->getDriverName() !== 'sqlite') {
+        $this->markTestSkipped('This fixture exercises separate in-memory SQLite read and write connections.');
+    }
+    $payload = ['headline' => 'Original source'];
+    $relativePath = $format === 'php' ? '/en/messages.php' : '/en.json';
+    File::ensureDirectoryExists($this->translationSource.'/en');
+    File::put($this->translationSource.$relativePath, $format === 'php' ? '<?php return '.var_export($payload, true).';' : json_encode($payload, JSON_THROW_ON_ERROR));
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], $format);
+    $entry = TranslationEntry::query()->sole();
+    $primary = $connection->getPdo();
+    $replica = new PDO('sqlite::memory:');
+    $statement = $primary->prepare('SELECT sql FROM sqlite_master WHERE type = ? AND name = ?');
+    $statement->execute(['table', $entry->getTable()]);
+    $replica->exec($statement->fetchColumn());
+    $table = $connection->getQueryGrammar()->wrapTable($entry->getTable());
+    $row = $entry->getRawOriginal();
+    $columns = array_map($connection->getQueryGrammar()->wrap(...), array_keys($row));
+    $replica->prepare('INSERT INTO '.$table.' ('.implode(', ', $columns).') VALUES ('.implode(', ', array_fill(0, count($row), '?')).')')->execute(array_values($row));
+    app(TranslationCatalog::class)->update(SystemActor::Background, $entry, ['value' => 'Current edit', 'expected_revision' => $entry->revision]);
+    $connection->setReadPdo($replica);
+    try {
+        app(TranslationExporter::class)->export(SystemActor::Background, ['app'], null, $format, $target);
+    } finally {
+        $connection->setReadPdo(null);
+    }
+    $path = ($target === 'source' ? $this->translationSource : $this->translationTarget).$relativePath;
+    $exported = $format === 'php' ? require $path : json_decode(File::get($path), true, flags: JSON_THROW_ON_ERROR);
+    expect($exported)->toBe(['headline' => 'Current edit'])
+        ->and($entry->fresh()->value)->toBe('Current edit');
+})->with(['php', 'json'])->with(['source', 'generated']);
+
 test('top-level numeric PHP keys round trip through the translation workspace', function (): void {
     File::ensureDirectoryExists($this->translationSource.'/en');
     $payload = [0 => 'Zero', 42 => 'Forty-two', 'nested' => [0 => 'Nested zero']];
@@ -526,7 +559,7 @@ test('export checks its configured catalog source connection before filesystem e
     File::put($this->translationSource.'/en.json', '{"Save":"Original"}');
     $name = 'translation-export-source';
     config()->set('database.connections.'.$name, ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
-    config()->set('nvl-translations.storage.connection', $name);
+    config()->set('nvl-translations.connection', $name);
     $connection = (new TranslationEntry)->getConnection();
     expect($connection->getName())->toBe($name);
     $connection->beginTransaction();

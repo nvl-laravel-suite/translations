@@ -184,7 +184,7 @@ final class TranslationExporter
             return $selectedLocales;
         }
 
-        $resolved = TranslationEntry::query()
+        $resolved = TranslationEntry::query()->useWritePdo()
             ->where('scope_type', $scope->type->value)
             ->where('scope_name', $scope->name)
             ->orderBy('locale')
@@ -208,7 +208,7 @@ final class TranslationExporter
         bool $prune,
         bool $synchronizeSource,
     ): array {
-        $query = TranslationEntry::query()
+        $query = TranslationEntry::query()->useWritePdo()
             ->where('scope_type', $scope->type->value)
             ->where('scope_name', $scope->name)
             ->where('locale', $locale)
@@ -270,7 +270,7 @@ final class TranslationExporter
         bool $prune,
         bool $synchronizeSource,
     ): array {
-        $rows = TranslationEntry::query()
+        $rows = TranslationEntry::query()->useWritePdo()
             ->where('scope_type', $scope->type->value)
             ->where('scope_name', $scope->name)
             ->where('locale', $locale)
