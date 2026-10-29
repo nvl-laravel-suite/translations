@@ -61,7 +61,6 @@ return [
     ],
 
     'lock' => [
-        'store' => null,
         'seconds' => 300,
         'wait_seconds' => 0,
     ],
@@ -87,4 +86,5 @@ return [
     'scan_allowlist' => [
         'errors.*',
     ],
+    'locks' => ['store' => null],
 ];

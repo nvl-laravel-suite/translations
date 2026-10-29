@@ -54,7 +54,7 @@ final class TranslationsServiceProvider extends ServiceProvider implements Owner
         $this->registerConfig();
         $this->publishesMigrations([
             __DIR__.'/../../database/migrations' => database_path('migrations'),
-        ], 'translations-migrations');
+        ], 'nvl-translations-migrations');
         if ((bool) config('nvl-translations.migrations.enabled', true)) {
             $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
         }
@@ -113,7 +113,7 @@ final class TranslationsServiceProvider extends ServiceProvider implements Owner
         $this->app->make(GlobalNames::class)->translations('translations', $langPath, $this->app->make('translation.loader'));
         $this->publishes([
             $langPath => lang_path('vendor/nvl-translations'),
-        ], 'translations-translations');
+        ], 'nvl-translations-translations');
     }
 
     /**
@@ -123,6 +123,6 @@ final class TranslationsServiceProvider extends ServiceProvider implements Owner
     {
         $this->publishes([
             __DIR__.'/../../config/nvl-translations.php' => config_path('nvl-translations.php'),
-        ], 'translations-config');
+        ], 'nvl-translations-config');
     }
 }

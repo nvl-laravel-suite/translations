@@ -325,3 +325,5 @@ The table lists enum discriminators, including any successful codes retained for
 ## License
 
 Released under the [MIT License](LICENSE).
+
+Shared [service contracts, model extensions and composition](https://github.com/nvl-laravel-suite/laravel-suite/blob/main/docs/consumer-api.md) apply alongside the package-specific rules above.

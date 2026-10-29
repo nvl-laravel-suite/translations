@@ -10,7 +10,7 @@ use Nvl\Translations\Services\TranslationProcessLock;
 it('uses the inherited Core store for translation process locking', function (): void {
     config([
         'nvl-translations.locks.store' => null,
-        'nvl-translations.lock.store' => null,
+        'nvl-translations.locks.store' => null,
         'nvl-core.locks.store' => 'shared-translation-locks',
         'cache.stores.shared-translation-locks' => ['driver' => 'array'],
     ]);

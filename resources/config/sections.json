@@ -7,7 +7,7 @@
                 "backup.enabled",
                 "discovery.modules",
                 "discovery.vendor",
-                "lock.store",
+                "locks.store",
                 "migrations.enabled",
                 "ownership.keys",
                 "ownership.scoped"

@@ -318,7 +318,7 @@ final readonly class TranslationsDoctor
         try {
             TranslationConfiguration::positiveInteger('nvl-translations.lock.seconds', 300);
             TranslationConfiguration::nonNegativeInteger('nvl-translations.lock.wait_seconds', 0);
-            $configuredStore = config('nvl-translations.lock.store');
+            $configuredStore = config('nvl-translations.locks.store');
             $store = is_string($configuredStore) && trim($configuredStore) !== ''
                 ? trim($configuredStore)
                 : null;
