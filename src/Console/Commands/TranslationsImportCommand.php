@@ -56,6 +56,7 @@ final class TranslationsImportCommand extends Command
             $strategy = is_string($choice) ? $choice : 'fail';
         }
 
+        $originalStrategy = config('nvl-translations.import.conflict_strategy');
         if ($strategy !== '') {
             $normalizedStrategy = str_replace('-', '_', $strategy);
 
@@ -65,7 +66,6 @@ final class TranslationsImportCommand extends Command
                 return self::FAILURE;
             }
 
-            config()->set('nvl-translations.import.conflict_strategy', $normalizedStrategy);
         }
 
         $output = $this->option('output');
@@ -76,7 +76,14 @@ final class TranslationsImportCommand extends Command
         }
 
         $dryRun = (bool) $this->option('dry-run');
-        $result = $action->import(SystemActor::Background, $scopes, $format, $dryRun);
+        try {
+            if (isset($normalizedStrategy)) {
+                config()->set('nvl-translations.import.conflict_strategy', $normalizedStrategy);
+            }
+            $result = $action->import(SystemActor::Background, $scopes, $format, $dryRun);
+        } finally {
+            config()->set('nvl-translations.import.conflict_strategy', $originalStrategy);
+        }
 
         if ($output === 'json') {
             $this->line((string) json_encode(

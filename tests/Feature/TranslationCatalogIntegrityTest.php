@@ -545,7 +545,8 @@ test('prefer strategies resolve conflicts without a failing command exit code', 
         '--output' => 'json',
     ])->assertSuccessful();
 
-    expect($entry->fresh()->value)->toBe('File edit');
+    expect($entry->fresh()->value)->toBe('File edit')
+        ->and(config('nvl-translations.import.conflict_strategy'))->toBe('prefer_database');
 });
 
 test('exports refuse to overwrite from an incomplete authoritative read', function (): void {

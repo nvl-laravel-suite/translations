@@ -21,7 +21,7 @@ $unused = $catalog->unused($actor, ['app'], days: 30);
 
 Import and export use configured scope tokens and named destinations, never arbitrary caller paths. Export returns an array summary plus actual artifact paths; a batch can contain multiple PHP and JSON files. Scanning uses configured source roots. Catalog criteria allow `scope_type`, `scope_name`, `locale`, `format`, `group`, `key`, `key_contains`, `search`, `missing_value`, `changed_since_import`, `is_missing`, and `sort`. String fields accept exact strings or lists; state fields require booleans. Sorts are allowlisted and tied by ID.
 
-`TranslationOverrideRepository` provides `get($actor, $key, $locale)`, `set($actor, $key, $locale, $value, $expectedRevision)`, `forget($actor, $key, $locale, $expectedRevision)` and `export($actor, $disk)` inside an admitted native owner context. Exports are private and return owner identity, disk, path, SHA-256 and size. Revision zero creates an override; positive revisions perform conditional changes. Configure literal `ownership.keys` and the optional override model before provider boot. Native adoption accepts reviewed mappings over populated native storage.
+`TranslationOverrideRepository` provides `get($actor, $key, $locale)`, `set($actor, $key, $locale, $value, $expectedRevision)`, `forget($actor, $key, $locale, $expectedRevision)` and `export($actor, $disk)` inside an admitted native owner context. Exports are private and return owner identity, disk, path, SHA-256 and size. Revision zero creates an override; positive revisions perform conditional changes. Configure literal `ownership.keys` and the optional override model before provider boot. Native adoption accepts reviewed mappings over populated native storage. The global catalog migrations intentionally omit the optional override table: reviewed Ownership adoption creates its captured storage and constraints before activation. Column or pivot override models require host-supplied schema. Running only the catalog migrations does not enable owner override operations.
 
 Every override operation reloads authenticated actors from canonical writer storage before policy evaluation. Override values must be valid UTF-8. Revision-checked updates and deletes lock on the configured model connection and preserve model casts and lifecycle hooks, including rejection and caller rollback.
 
@@ -265,9 +265,11 @@ Workspace synchronization uses an atomic cache lock:
 
 ```php
 'lock' => [
-    'store' => 'redis', // null uses the application default
     'seconds' => 300,
     'wait_seconds' => 0,
+],
+'locks' => [
+    'store' => 'redis', // null uses the Core lock store, then the application default
 ],
 ```
 

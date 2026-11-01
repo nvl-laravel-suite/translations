@@ -73,6 +73,7 @@ test('exports current catalog edits rather than stale read replica values', func
     $statement = $primary->prepare('SELECT sql FROM sqlite_master WHERE type = ? AND name = ?');
     $statement->execute(['table', $entry->getTable()]);
     $replica->exec($statement->fetchColumn());
+    $statement->closeCursor();
     $table = $connection->getQueryGrammar()->wrapTable($entry->getTable());
     $row = $entry->getRawOriginal();
     $columns = array_map($connection->getQueryGrammar()->wrap(...), array_keys($row));

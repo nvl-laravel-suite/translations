@@ -106,6 +106,7 @@ final readonly class DatabaseTranslationOverrideRepository implements Translatio
      */
     private function query(string $key, string $locale): Builder
     {
+        $this->context->current()->requireOwner();
         $this->keys->assertAllowed($key, $locale);
         $class = $this->models->modelClass();
         $model = new $class;

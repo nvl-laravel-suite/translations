@@ -8,6 +8,7 @@ use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Nvl\Support\Config\PackageStorage;
 use Nvl\Support\Ownership\Contracts\OwnershipReadiness;
 use Nvl\Support\Ownership\Exceptions\OwnershipException;
 use Nvl\Support\Ownership\Services\OwnershipConstraintInspector;
@@ -104,9 +105,10 @@ final readonly class TranslationsDoctor
             ],
         ];
         $checks = [];
+        $schema = Schema::connection(PackageStorage::connection('translations'));
 
         foreach ($tables as $table => $requirements) {
-            $exists = Schema::hasTable($table);
+            $exists = $schema->hasTable($table);
             $checks[] = [
                 'key' => "schema.table.{$table}",
                 'severity' => 'error',
@@ -118,10 +120,7 @@ final readonly class TranslationsDoctor
                 continue;
             }
 
-            $missing = array_values(array_filter(
-                $requirements['columns'],
-                static fn (string $column): bool => ! Schema::hasColumn($table, $column),
-            ));
+            $missing = array_values(array_diff($requirements['columns'], $schema->getColumnListing($table)));
             $checks[] = [
                 'key' => "schema.columns.{$table}",
                 'severity' => 'error',
@@ -136,13 +135,8 @@ final readonly class TranslationsDoctor
             }
 
             $hasIdentityIndex = false;
-            foreach (Schema::getIndexes($table) as $index) {
-                if (! is_array($index)) {
-                    continue;
-                }
-
-                if (($index['unique'] ?? false) === true
-                    && ($index['columns'] ?? []) === ['identity_hash']) {
+            foreach ($schema->getIndexes($table) as $index) {
+                if ($index['unique'] && $index['columns'] === ['identity_hash']) {
                     $hasIdentityIndex = true;
 
                     break;
@@ -227,20 +221,17 @@ final readonly class TranslationsDoctor
         $configuredName = is_string($configuredAbility) ? trim($configuredAbility) : '';
         $configured = $configuredName !== '' && Gate::has($configuredName);
         $usesCustomBoundary = ! $this->authorization instanceof ConfiguredTranslationsAuthorization;
-        $ready = ! (bool) config('nvl-translations.routes.enabled', false)
-            || $configured
-            || $usesCustomBoundary;
+        $ready = $configured || $usesCustomBoundary;
 
         return [
             'key' => 'binding.authorization',
             'severity' => 'error',
             'passed' => $ready,
             'message' => match (true) {
-                ! (bool) config('nvl-translations.routes.enabled', false) => 'Authorization is bound; management routes are disabled.',
-                $configured => 'The configured Gate ability protects management routes.',
-                $usesCustomBoundary => 'A custom TranslationsAuthorization implementation protects management routes.',
+                $configured => 'The configured Gate ability protects translation operations.',
+                $usesCustomBoundary => 'A custom TranslationsAuthorization implementation protects translation operations.',
                 $configuredName !== '' => "Configured Gate ability [{$configuredName}] is not registered.",
-                default => 'Management routes require a configured Gate ability or custom authorization binding.',
+                default => 'Translation operations require a configured Gate ability or custom authorization binding.',
             },
         ];
     }

@@ -6,12 +6,15 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Nvl\Support\Enums\SystemActor;
+use Nvl\Support\Ownership\Exceptions\OwnershipViolation;
+use Nvl\Translations\Contracts\TranslationOverrideRepository;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Exceptions\InvalidTranslationInputException;
@@ -604,3 +607,41 @@ test('doctor reports invalid configuration as structured checks without mutation
     'scan retention' => [['nvl-translations.scan.retention_days' => -1]],
     'scan patterns' => [['nvl-translations.scan.patterns' => ['/[/']]],
 ]);
+
+test('doctor requires service authorization even without consumer routes', function (): void {
+    app()->instance(TranslationsAuthorization::class, new ConfiguredTranslationsAuthorization);
+    config(['nvl-translations.authorization.ability' => null, 'nvl-translations.routes.enabled' => false]);
+
+    $checks = collect(app(TranslationsDoctor::class)->inspect())->keyBy('key');
+    expect($checks['binding.authorization']['passed'])->toBeFalse();
+});
+
+test('owner overrides reject unadmitted use before touching optional storage', function (): void {
+    config(['nvl-translations.ownership.keys' => ['messages.used']]);
+
+    expect(fn () => app(TranslationOverrideRepository::class)->get(SystemActor::Background, 'messages.used', 'en'))
+        ->toThrow(OwnershipViolation::class);
+});
+
+test('doctor inspects the configured catalog connection', function (): void {
+    config([
+        'database.connections.empty_catalog' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => ''],
+        'nvl-translations.connection' => 'empty_catalog',
+    ]);
+
+    $checks = collect(app(TranslationsDoctor::class)->inspect())->keyBy('key');
+    expect($checks['schema.table.nvl_translations_entries']['passed'])->toBeFalse();
+});
+
+test('sync never leaks a conflict strategy after invalid output or import failure', function (): void {
+    config(['nvl-translations.import.conflict_strategy' => 'prefer_database']);
+    $this->artisan('nvl:translations:sync', ['--strategy' => 'prefer-file', '--output' => 'yaml'])
+        ->assertFailed();
+    expect(config('nvl-translations.import.conflict_strategy'))->toBe('prefer_database');
+
+    File::put($this->consumerSource.'/en.json', '{invalid-json');
+    expect(fn () => Artisan::call('nvl:translations:sync', [
+        '--scope' => ['app'], '--format' => 'json', '--strategy' => 'prefer-file',
+    ]))->toThrow(TranslationsException::class);
+    expect(config('nvl-translations.import.conflict_strategy'))->toBe('prefer_database');
+});
