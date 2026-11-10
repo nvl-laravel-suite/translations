@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Models\TranslationEntry;
+use Nvl\Translations\Tests\Fixtures\Data\TranslationEntryPayload;
 use Nvl\Translations\Tests\Fixtures\TranslationApiAuthorizationFake;
 
 beforeEach(function (): void {
@@ -178,4 +179,27 @@ test('management API rejects ambiguous lists, oversized tokens, and missing upda
         'expected_revision' => $entry->revision,
     ])->assertUnprocessable()
         ->assertJsonValidationErrors(['value']);
+});
+
+test('management API accepts an explicit null clear and serializes native entry values', function (): void {
+    File::put($this->apiSource.'/en.json', '{"Save":"Save"}');
+    $this->postJson('/nvl/api/v1/translations/import', ['scope' => 'app', 'format' => 'json'])->assertSuccessful();
+    $entry = TranslationEntry::query()->sole();
+
+    $this->patchJson("/nvl/api/v1/translations/entries/{$entry->id}", [
+        'value' => null,
+        'expected_revision' => (string) $entry->revision,
+    ])->assertSuccessful()
+        ->assertJsonPath('data.value', null)
+        ->assertJsonPath('data.revision', $entry->revision + 1)
+        ->assertJsonPath('data.scopeType', 'app')
+        ->assertJsonPath('data.format', 'json')
+        ->assertJsonPath('data.syncStatus', 'edited')
+        ->assertJsonPath('data.lastExportedAt', null);
+
+    $fresh = $entry->fresh();
+    $payload = TranslationEntryPayload::fromModel($fresh)->toArray();
+    expect($payload['lastImportedAt'])->toBe($fresh->last_imported_at?->format(DATE_ATOM))
+        ->and($payload['createdAt'])->toBe($fresh->created_at?->format(DATE_ATOM))
+        ->and($payload['updatedAt'])->toBe($fresh->updated_at?->format(DATE_ATOM));
 });

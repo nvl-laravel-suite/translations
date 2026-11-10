@@ -4,24 +4,20 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Tests\Fixtures\Data;
 
+use BackedEnum;
 use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Nvl\Translations\Enums\TranslationFormat;
 use Nvl\Translations\Enums\TranslationScopeType;
 use Nvl\Translations\Enums\TranslationSyncStatus;
 use Nvl\Translations\Models\TranslationEntry;
-use Spatie\LaravelData\Attributes\MapInputName;
-use Spatie\LaravelData\Attributes\MapOutputName;
-use Spatie\LaravelData\Data;
-use Spatie\LaravelData\Mappers\CamelCaseMapper;
 
 /**
  * Data transfer object for a translation entry row.
  *
  * @api
  */
-#[MapOutputName(CamelCaseMapper::class)]
-#[MapInputName(CamelCaseMapper::class)]
-final class TranslationEntryPayload extends Data
+final class TranslationEntryPayload
 {
     /**
      * @param  string  $id  Entry id
@@ -56,6 +52,16 @@ final class TranslationEntryPayload extends Data
         public readonly CarbonImmutable $createdAt,
         public readonly CarbonImmutable $updatedAt,
     ) {}
+
+    /** @return array<string, mixed> */
+    public function toArray(): array
+    {
+        return array_map(static fn (mixed $value): mixed => match (true) {
+            $value instanceof BackedEnum => $value->value,
+            $value instanceof DateTimeInterface => $value->format(DATE_ATOM),
+            default => $value,
+        }, get_object_vars($this));
+    }
 
     /**
      * Build DTO from model.

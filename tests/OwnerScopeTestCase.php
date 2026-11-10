@@ -21,7 +21,6 @@ use Nvl\Translations\Contracts\TranslationsAuthorization;
 use Nvl\Translations\Providers\TranslationsServiceProvider;
 use Nvl\Translations\Tests\Fixtures\ConfiguredOverride;
 use Nvl\Translations\Tests\Fixtures\TranslationApiAuthorizationFake;
-use Spatie\LaravelData\LaravelDataServiceProvider as DataServiceProvider;
 
 /** Uses native owners and a real nonempty historical copy without outer test transactions. */
 abstract class OwnerScopeTestCase extends OwnershipTestCase
@@ -35,7 +34,7 @@ abstract class OwnerScopeTestCase extends OwnershipTestCase
     /** @return list<class-string> */
     protected function getPackageProviders($app): array
     {
-        return [...parent::getPackageProviders($app), LocaleServiceProvider::class, DataServiceProvider::class, TranslationsServiceProvider::class];
+        return [...parent::getPackageProviders($app), LocaleServiceProvider::class, TranslationsServiceProvider::class];
     }
 
     /** Select one actual configured override class and literal native keys. */

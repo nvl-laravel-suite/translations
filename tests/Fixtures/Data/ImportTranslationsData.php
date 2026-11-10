@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Tests\Fixtures\Data;
 
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Nvl\Translations\Tests\Fixtures\StringOrList;
-use Spatie\LaravelData\Data;
 
 /** Validated file-to-workspace import options. */
-final class ImportTranslationsData extends Data
+final class ImportTranslationsData
 {
     /** @param array<array-key, mixed>|string|null $scope */
     public function __construct(
@@ -17,6 +17,18 @@ final class ImportTranslationsData extends Data
         public readonly ?string $format = null,
         public readonly ?bool $dryRun = null,
     ) {}
+
+    /** Validate file import options at the host HTTP boundary. */
+    public static function fromRequest(Request $request): self
+    {
+        $data = $request->validate(self::rules());
+
+        return new self(
+            scope: $data['scope'] ?? null,
+            format: $data['format'] ?? null,
+            dryRun: isset($data['dryRun']) ? (bool) $data['dryRun'] : null,
+        );
+    }
 
     /** @return array<string, list<mixed>> */
     public static function rules(): array

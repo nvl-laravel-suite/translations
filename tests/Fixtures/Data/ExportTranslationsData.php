@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Tests\Fixtures\Data;
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 use Nvl\Translations\Tests\Fixtures\StringOrList;
-use Spatie\LaravelData\Data;
 
 /** Validated workspace-to-file export options. */
-final class ExportTranslationsData extends Data
+final class ExportTranslationsData
 {
     /**
      * @param  array<array-key, mixed>|string|null  $scope
@@ -25,6 +26,24 @@ final class ExportTranslationsData extends Data
         public readonly ?bool $dryRun = null,
         public readonly ?bool $force = null,
     ) {}
+
+    /** Validate export options without coupling the consumer fixture to a DTO runtime. */
+    public static function fromRequest(Request $request): self
+    {
+        $validator = ValidatorFacade::make($request->all(), self::rules());
+        self::withValidator($validator);
+        $data = $validator->validate();
+
+        return new self(
+            scope: $data['scope'] ?? null,
+            locales: $data['locales'] ?? null,
+            format: $data['format'] ?? null,
+            target: $data['target'] ?? null,
+            prune: isset($data['prune']) ? (bool) $data['prune'] : null,
+            dryRun: isset($data['dryRun']) ? (bool) $data['dryRun'] : null,
+            force: isset($data['force']) ? (bool) $data['force'] : null,
+        );
+    }
 
     /** @return array<string, list<mixed>> */
     public static function rules(): array

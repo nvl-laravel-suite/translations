@@ -5,6 +5,10 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- Remove the obsolete Spatie Laravel Data development dependency. Translation test adapters now use native validation and explicit projections, including omitted values and null clearing.
+
 ## [7.0.1] - 2026-11-09
 
 ### Changed
