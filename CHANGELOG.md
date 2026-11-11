@@ -5,6 +5,8 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+## [7.0.3] - 2026-11-11
+
 ### Fixed
 
 - Imports invalidate each PHP catalog in OPcache before reading it. A synchronization that followed a source export in the same PHP-FPM pool could read the pre-export compiled file and revert the exported edit.
@@ -17,6 +19,12 @@ All notable changes to `nvl/translations` are documented here.
 - Application-scope exports and prunes reject `vendor` as a locale; pruning it deleted the nested vendor-scope catalogs.
 - The published configuration declares the documented `connection` key.
 - `nvl:translations:unused` says when no completed scan backs the report.
+
+<!-- NVL GENERATED CHANGES START -->
+### Changed
+
+- correct workspace import and export regressions
+<!-- NVL GENERATED CHANGES END -->
 
 ## [7.0.2] - 2026-11-10
 
