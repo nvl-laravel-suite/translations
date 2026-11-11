@@ -372,6 +372,11 @@ final class TranslationImporter
      */
     private function loadPhpPayload(string $path): mixed
     {
+        // A catalog replaced by an earlier export must not be served from a compiled copy.
+        if (function_exists('opcache_invalidate')) {
+            @opcache_invalidate($path, true);
+        }
+
         $bufferLevel = ob_get_level();
 
         if (! ob_start()) {
@@ -553,6 +558,10 @@ final class TranslationImporter
                     || $existing->is_missing) {
                     $updated++;
                     $row['revision'] = $existing->revision + 1;
+                }
+
+                if ($row['revision'] === $existing->revision && $existing->updated_at !== null) {
+                    $row['updated_at'] = $existing->updated_at;
                 }
 
                 $upserts[] = $row;

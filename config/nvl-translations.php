@@ -74,9 +74,9 @@ return [
         'extensions' => ['php', 'blade.php', 'js', 'jsx', 'ts', 'tsx', 'vue'],
         'retention_days' => 30,
         'patterns' => [
-            '/(?:(?:__|trans|trans_choice|Lang::get|Lang::choice)\s*\(\s*[\'"]([^\'"]+)[\'"])/',
-            '/(?:@lang|@choice)\s*\(\s*[\'"]([^\'"]+)[\'"]/',
-            '/(?<![A-Za-z0-9_$])(?:t|\$t)\s*\(\s*[\'"]([^\'"]+)[\'"]/',
+            '/(?:(?:__|trans|trans_choice|Lang::get|Lang::choice)\s*\(\s*(?|\'([^\'\\\\]*+(?:\\\\.[^\'\\\\]*+)*+)\'|"([^"\\\\]*+(?:\\\\.[^"\\\\]*+)*+)"))/',
+            '/(?:@lang|@choice)\s*\(\s*(?|\'([^\'\\\\]*+(?:\\\\.[^\'\\\\]*+)*+)\'|"([^"\\\\]*+(?:\\\\.[^"\\\\]*+)*+)")/',
+            '/(?<![A-Za-z0-9_$])(?:t|\$t)\s*\(\s*(?|\'([^\'\\\\]*+(?:\\\\.[^\'\\\\]*+)*+)\'|"([^"\\\\]*+(?:\\\\.[^"\\\\]*+)*+)")/',
         ],
         'namespaces' => [
             // 'package-namespace' => 'vendor:package-directory',
@@ -87,4 +87,5 @@ return [
         'errors.*',
     ],
     'locks' => ['store' => null],
+    'connection' => null,
 ];

@@ -8,6 +8,7 @@ use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Nvl\Support\Config\PackageOptions;
 use Nvl\Support\Config\PackageStorage;
 use Nvl\Support\Ownership\Contracts\OwnershipReadiness;
 use Nvl\Support\Ownership\Exceptions\OwnershipException;
@@ -74,8 +75,6 @@ final readonly class TranslationsDoctor
             return [['key' => 'ownership.overrides', 'severity' => 'error', 'passed' => false, 'message' => $exception->getMessage()]];
         }
     }
-
-    /** @return list<array{key:string,severity:string,passed:bool,message:string}> */
 
     /**
      * @return list<array{key:string,severity:string,passed:bool,message:string}>
@@ -309,11 +308,7 @@ final readonly class TranslationsDoctor
         try {
             TranslationConfiguration::positiveInteger('nvl-translations.lock.seconds', 300);
             TranslationConfiguration::nonNegativeInteger('nvl-translations.lock.wait_seconds', 0);
-            $configuredStore = config('nvl-translations.locks.store');
-            $store = is_string($configuredStore) && trim($configuredStore) !== ''
-                ? trim($configuredStore)
-                : null;
-            $cacheStore = Cache::store($store)->getStore();
+            $cacheStore = Cache::store(PackageOptions::lockStore('translations'))->getStore();
             $supportsLocks = $cacheStore instanceof LockProvider;
             $driver = $cacheStore::class;
 

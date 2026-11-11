@@ -62,6 +62,8 @@ final class TranslationsUnusedCommand extends Command
 
         if ($result['scanned_at'] !== null) {
             $this->line(sprintf('Reference scan time: %s', $result['scanned_at']->toDateTimeString()));
+        } else {
+            $this->warn('No completed scan exists, so every entry is listed. Run nvl:translations:scan first.');
         }
 
         if ($result['rows'] === []) {

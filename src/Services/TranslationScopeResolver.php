@@ -245,16 +245,6 @@ final class TranslationScopeResolver
         }
     }
 
-    /**
-     * Resolve a module name from a translation namespace.
-     */
-    public function resolveModuleNameFromNamespace(string $namespace): ?string
-    {
-        $scope = $this->resolveNamespace($namespace);
-
-        return $scope?->type === TranslationScopeType::Module ? $scope->name : null;
-    }
-
     /** @param array<array-key, mixed> $scopeTokens */
     private function validateTokens(array $scopeTokens): void
     {

@@ -13,6 +13,8 @@ use Nvl\Support\Enums\SystemActor;
 use Nvl\Support\Events\DomainEventDispatcher;
 use Nvl\Translations\Enums\TranslationFormat;
 use Nvl\Translations\Enums\TranslationsAbility;
+use Nvl\Translations\Enums\TranslationScopeType;
+use Nvl\Translations\Enums\TranslationSyncStatus;
 use Nvl\Translations\Events\TranslationsExported;
 use Nvl\Translations\Exceptions\InvalidTranslationInputException;
 use Nvl\Translations\Exceptions\TranslationsException;
@@ -120,6 +122,12 @@ final class TranslationExporter
             $scopeLocales = $this->resolveLocalesForScope($scope, $selectedLocales);
 
             foreach ($scopeLocales as $locale) {
+                if ($scope->type === TranslationScopeType::App && strtolower($locale) === 'vendor') {
+                    throw new InvalidTranslationInputException(
+                        'The application scope reserves [vendor] for vendor scopes; it is not a locale.',
+                    );
+                }
+
                 $localesTouched[$scope->token().'|'.$locale] = true;
 
                 if ($includePhp) {
@@ -218,7 +226,7 @@ final class TranslationExporter
             ->orderBy('group')
             ->orderBy('key');
 
-        $rows = $query->get(['id', 'group', 'key', 'value']);
+        $rows = $query->get(['id', 'group', 'key', 'value', 'source_hash', 'sync_status']);
         $grouped = [];
 
         foreach ($rows as $row) {
@@ -277,7 +285,7 @@ final class TranslationExporter
             ->where('format', TranslationFormat::Json->value)
             ->where('is_missing', false)
             ->orderBy('key')
-            ->get(['id', 'key', 'value']);
+            ->get(['id', 'key', 'value', 'source_hash', 'sync_status']);
 
         $targetPath = $this->paths->child($targetRoot, $locale.'.json');
 
@@ -368,6 +376,8 @@ final class TranslationExporter
     }
 
     /**
+     * Record the published source state; rows that already matched it keep their revision.
+     *
      * @param  Collection<int, TranslationEntry>  $rows
      */
     private function markSynchronized(Collection $rows): void
@@ -376,18 +386,20 @@ final class TranslationExporter
 
         (new TranslationEntry)->getConnection()->transaction(function () use ($rows, $now): void {
             foreach ($rows as $row) {
-                TranslationEntry::query()
-                    ->whereKey($row->id)
-                    ->lockForUpdate()
-                    ->update([
-                        'source_hash' => TranslationValueHash::make($row->value),
-                        'sync_status' => 'synchronized',
+                $sourceHash = TranslationValueHash::make($row->value);
+                $changes = ['last_imported_at' => $now, 'last_exported_at' => $now];
+
+                if ($row->sync_status !== TranslationSyncStatus::Synchronized || $row->source_hash !== $sourceHash) {
+                    $changes += [
+                        'source_hash' => $sourceHash,
+                        'sync_status' => TranslationSyncStatus::Synchronized->value,
                         'conflict_metadata' => null,
-                        'last_imported_at' => $now,
-                        'last_exported_at' => $now,
                         'revision' => DB::raw('revision + 1'),
                         'updated_at' => $now,
-                    ]);
+                    ];
+                }
+
+                TranslationEntry::query()->toBase()->where('id', $row->id)->update($changes);
             }
         });
     }

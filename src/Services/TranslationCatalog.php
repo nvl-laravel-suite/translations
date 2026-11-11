@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 use Nvl\Support\Enums\SystemActor;
@@ -64,6 +65,9 @@ final class TranslationCatalog
             throw new InvalidTranslationInputException('Translation entries require their persisted source identity.');
         }
         $entryId = $entry instanceof TranslationEntry ? $entry->id : $entry;
+        if (! Str::isUuid($entryId)) {
+            throw (new ModelNotFoundException)->setModel(TranslationEntry::class, [$entryId]);
+        }
         $updated = $this->lock->execute(
             'update',
             fn (): TranslationEntry => (new TranslationEntry)->getConnection()->transaction(function () use ($actor, $entryId, $data): TranslationEntry {
@@ -443,7 +447,8 @@ final class TranslationCatalog
             }
             $column = $query->getQuery()->getGrammar()->wrap('key');
             self::ensureSafeWrappedColumn($column);
-            $query->whereRaw("{$column} LIKE ? ESCAPE '!'", ['%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $criteria['key_contains']).'%']);
+            $like = $query->getModel()->getConnection()->getDriverName() === 'pgsql' ? 'ILIKE' : 'LIKE';
+            $query->whereRaw("{$column} {$like} ? ESCAPE '!'", ['%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $criteria['key_contains']).'%']);
         }
         foreach (['search' => 'filterSearch', 'missing_value' => 'filterMissingValue', 'changed_since_import' => 'filterChangedSinceImport', 'is_missing' => 'filterIsMissing'] as $key => $method) {
             if (array_key_exists($key, $criteria)) {

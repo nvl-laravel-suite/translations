@@ -18,7 +18,9 @@ See [README](README.md) for native signatures and retained source, scan, backup 
 
 ## Next major: isolated schema identities
 
-This is a breaking schema identity change. Back up storage and migration history, pause writes/workers, install this code with automatic package migrations disabled, and select one owner for migrations (vendor or published).
+This is a breaking schema identity change. Back up storage and migration history, pause writes/workers, install this code with automatic package migrations disabled, and select one owner for migrations (vendor or published). In family 7, `nvl:doctor` requires registering `Nvl\Support\Providers\DoctorServiceProvider` in the host; it is not auto-discovered.
+
+The `nvl:schema:*` commands ship through the 6.x line only. Family 7 does not register them, so complete this step before upgrading to 7.
 
 ```sh
 php artisan nvl:doctor --strict --format=json

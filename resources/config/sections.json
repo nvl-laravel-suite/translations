@@ -5,6 +5,7 @@
             "common": [
                 "authorization.ability",
                 "backup.enabled",
+                "connection",
                 "discovery.modules",
                 "discovery.vendor",
                 "locks.store",

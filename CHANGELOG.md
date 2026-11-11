@@ -5,6 +5,19 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Imports invalidate each PHP catalog in OPcache before reading it. A synchronization that followed a source export in the same PHP-FPM pool could read the pre-export compiled file and revert the exported edit.
+- `TranslationCatalog::update` reports a malformed entry identifier as not found instead of raising a PostgreSQL `22P02` query error.
+- The `key_contains` catalog criterion ignores letter case on PostgreSQL as it already did on MySQL and SQLite.
+- The doctor's `lock.workspace` check inspects the store that workspace locking uses, including one inherited from `nvl-core.locks.store`.
+- The default scanner patterns capture keys that contain an escaped quote or the other quote character, and a key with empty dot segments such as `Loading...` is recorded as JSON usage. Such keys were reported as unused.
+- Imports and source exports no longer bump `revision` and `updated_at` on entries they leave unchanged, so an editor's expected revision survives an unrelated synchronization or export.
+- Exports leave an artifact that already holds its exported content in place instead of replacing it and adding another backup copy on every run.
+- Application-scope exports and prunes reject `vendor` as a locale; pruning it deleted the nested vendor-scope catalogs.
+- The published configuration declares the documented `connection` key.
+- `nvl:translations:unused` says when no completed scan backs the report.
+
 ## [7.0.2] - 2026-11-10
 
 ### Changed

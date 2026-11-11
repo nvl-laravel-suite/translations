@@ -19,7 +19,7 @@ $statistics = $catalog->statistics($actor, ['is_missing' => true]);
 $unused = $catalog->unused($actor, ['app'], days: 30);
 ```
 
-Import and export use configured scope tokens and named destinations, never arbitrary caller paths. Export returns an array summary plus actual artifact paths; a batch can contain multiple PHP and JSON files. Scanning uses configured source roots. Catalog criteria allow `scope_type`, `scope_name`, `locale`, `format`, `group`, `key`, `key_contains`, `search`, `missing_value`, `changed_since_import`, `is_missing`, and `sort`. String fields accept exact strings or lists; state fields require booleans. Sorts are allowlisted and tied by ID.
+Import and export use configured scope tokens and named destinations, never arbitrary caller paths. Export returns an array summary plus actual artifact paths; a batch can contain multiple PHP and JSON files. Scanning uses configured source roots. Catalog criteria allow `scope_type`, `scope_name`, `locale`, `format`, `group`, `key`, `key_contains`, `search`, `missing_value`, `changed_since_import`, `is_missing`, and `sort`. String fields accept exact strings or lists; `key_contains` matches a literal fragment without regard to letter case; state fields require booleans. Sorts are allowlisted and tied by ID. An entry identifier that is not a UUID is reported as not found.
 
 `TranslationOverrideRepository` provides `get($actor, $key, $locale)`, `set($actor, $key, $locale, $value, $expectedRevision)`, `forget($actor, $key, $locale, $expectedRevision)` and `export($actor, $disk)` inside an admitted native owner context. Exports are private and return owner identity, disk, path, SHA-256 and size. Revision zero creates an override; positive revisions perform conditional changes. Configure literal `ownership.keys` and the optional override model before provider boot. Native adoption accepts reviewed mappings over populated native storage. The global catalog migrations intentionally omit the optional override table: reviewed Ownership adoption creates its captured storage and constraints before activation. Column or pivot override models require host-supplied schema. Running only the catalog migrations does not enable owner override operations.
 
@@ -144,7 +144,7 @@ Conflict strategies:
 
 Missing configured directories are reported and skipped. A successfully read selected format marks rows absent from that source as missing; parse errors never cause missing markers.
 
-PHP catalog loading is output-buffered: a catalog that emits output is rejected instead of corrupting a console or API response. Files or directories reached through symbolic links are rejected.
+PHP catalog loading is output-buffered: a catalog that emits output is rejected instead of corrupting a console or API response. Each PHP catalog is invalidated in OPcache before it is read, so an import never synchronizes from a compiled copy that predates the current file. Files or directories reached through symbolic links are rejected.
 
 
 ## Configure output directories
@@ -198,6 +198,7 @@ Exports:
 - stage and validate every replacement before changing any target file;
 - apply sibling-file atomic replacements as one backed-up batch and restore original contents if a later operation fails;
 - preserve existing file permissions when possible;
+- leave a file that already holds its exported content in place, without a new backup;
 - never write outside the configured scope target.
 
 A non-dry-run export must start outside an existing transaction on the actual `TranslationEntry` connection. The service rejects an ambient catalog transaction before source synchronization, backups or file publication; its immediate filesystem result cannot be undone by a caller’s later database rollback. This applies to source and named destinations. Dry runs may simulate the export inside an ambient transaction and restore their own nested changes without publishing files.
@@ -206,7 +207,9 @@ Every export performs a fresh authoritative-source read first. Export stops when
 
 Export locale discovery and PHP/JSON catalog reads use the writer connection after synchronization, preventing a lagging replica from replacing current edits with stale values.
 
-Exporting to `source` updates the synchronization hash because the imported source was replaced. Exporting to another named target does not alter source tracking, so a later source import still preserves unexported database edits.
+Exporting to `source` updates the synchronization hash because the imported source was replaced. Exporting to another named target does not alter source tracking, so a later source import still preserves unexported database edits. Entries that an import or source export leaves unchanged keep their `revision` and `updated_at`, so an open editor's expected revision stays valid.
+
+In the `app` scope `vendor` is the nested vendor-scope directory, never a locale; selecting it as an export or prune locale is rejected.
 
 
 ## Pruning
@@ -257,9 +260,9 @@ php artisan nvl:translations:unused --help
 
 Dynamic keys cannot be discovered statically. Preserve them in unused reports with `nvl-translations.scan_allowlist`.
 
-The scanner is intentionally heuristic: it records only configured literal-key call patterns. The package defaults cover Laravel helpers, `Lang::get`, `Lang::choice`, Blade `@lang`/`@choice`, and JavaScript `t`/`$t`; override `scan.patterns` only with tested regular expressions. Non-namespaced usages belong to the `app` scope; an unknown namespace is skipped rather than treated as a global usage. Successful scans prune usage history older than `scan.retention_days` when retention is greater than zero.
+The scanner is intentionally heuristic: it records only configured literal-key call patterns. The package defaults cover Laravel helpers, `Lang::get`, `Lang::choice`, Blade `@lang`/`@choice`, and JavaScript `t`/`$t`, including single- or double-quoted keys that contain the other quote or an escaped one; override `scan.patterns` only with tested regular expressions whose first capture group is the key. A key without a namespace counts as a PHP group key only when it is made of non-empty dot-separated segments, so `Loading...` is JSON usage. Non-namespaced usages belong to the `app` scope; an unknown namespace is skipped rather than treated as a global usage. Successful scans prune usage history older than `scan.retention_days` when retention is greater than zero.
 
-Each successful scan stores a durable run marker, including zero-hit scans. Latest-scan unused reports therefore do not reuse stale hits, and usage matching keeps PHP and JSON identities separate. Ambiguous namespace names must be resolved explicitly through `scan.namespaces`.
+Each successful scan stores a durable run marker, including zero-hit scans. Latest-scan unused reports therefore do not reuse stale hits, and usage matching keeps PHP and JSON identities separate. Before the first completed scan the report lists every entry and `nvl:translations:unused` says so. Ambiguous namespace names must be resolved explicitly through `scan.namespaces`.
 
 Workspace synchronization uses an atomic cache lock:
 
@@ -300,7 +303,7 @@ php artisan nvl:translations:doctor --strict --format=json
 
 ## Shared infrastructure options
 
-Set `nvl-translations.locks.store`, or inherit `nvl-core.locks.store` and `cache.default`. Workspace process locking uses the selected store; `lock.seconds` and `lock.wait_seconds` retain their operation-specific behavior. Configure the catalog connection with `nvl-translations.connection`.
+Set `nvl-translations.locks.store`, or inherit `nvl-core.locks.store` and `cache.default`. Workspace process locking and the doctor's lock check use the selected store; `lock.seconds` and `lock.wait_seconds` retain their operation-specific behavior. Configure the catalog connection with `nvl-translations.connection`; `null` inherits `nvl-core.connection`, then the application default.
 
 
 ## Canonical configuration ownership

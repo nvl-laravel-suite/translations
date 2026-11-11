@@ -228,7 +228,8 @@ final class TranslationScanner
                 continue;
             }
 
-            $parsed = $this->parseUsageKey($rawKey);
+            // Quotes are escaped inside the source literal but not in the catalog key.
+            $parsed = $this->parseUsageKey(preg_replace('/\\\\([\'"\\\\])/', '$1', $rawKey) ?? $rawKey);
             if ($parsed === null) {
                 continue;
             }
@@ -308,7 +309,7 @@ final class TranslationScanner
             return TranslationFormat::Json;
         }
 
-        return preg_match('/^[A-Za-z0-9_\/-]+\.[A-Za-z0-9_.\/-]+$/', $fullKey) === 1
+        return preg_match('/^[A-Za-z0-9_\/-]+(?:\.[A-Za-z0-9_\/-]+)+$/', $fullKey) === 1
             ? TranslationFormat::Php
             : TranslationFormat::Json;
     }

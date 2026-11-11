@@ -27,6 +27,16 @@ test('consumer configuration wins while omitted nested package defaults remain a
         ->and(config('nvl-translations.scan_allowlist'))->toBe(['errors.*']);
 });
 
+test('the published configuration declares the documented catalog connection', function (): void {
+    $defaults = require __DIR__.'/../../config/nvl-translations.php';
+    $published = require __DIR__.'/../../resources/config/nvl-translations.php';
+
+    expect(array_key_exists('connection', $defaults))->toBeTrue()
+        ->and($defaults['connection'])->toBeNull()
+        ->and(array_key_exists('connection', $published))->toBeTrue()
+        ->and(config()->has('nvl-translations.connection'))->toBeTrue();
+});
+
 test('consumer service bindings survive package provider registration', function (): void {
     $contracts = [
         TranslationOverrideRepository::class,

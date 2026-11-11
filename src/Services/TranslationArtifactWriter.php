@@ -30,6 +30,8 @@ final class TranslationArtifactWriter
     /**
      * Apply every write and deletion only after all replacement files are staged.
      *
+     * A file that already holds its planned content is neither replaced nor backed up.
+     *
      * @param  list<ArtifactWrite>  $writes
      * @param  list<ArtifactDelete>  $deletes
      */
@@ -37,6 +39,10 @@ final class TranslationArtifactWriter
     {
         $this->validatePlan($writes, $deletes);
         $originals = $this->captureOriginals($writes, $deletes);
+        $writes = array_values(array_filter(
+            $writes,
+            static fn (array $write): bool => $originals[$write['path']]['content'] !== $write['content'],
+        ));
         $temporaryPaths = [];
         $backupBatch = CarbonImmutable::now('UTC')->format('Ymd_His_u').'-'.bin2hex(random_bytes(4));
         $mutatedPaths = [];

@@ -10,6 +10,7 @@ $workspaceWorkflows = [
     'TranslationCatalogIntegrityTest.php',
     'TranslationsConsumerContractsTest.php',
     'TranslationsApiTest.php',
+    'TranslationWorkspaceRegressionTest.php',
 ];
 foreach (glob(__DIR__.'/Feature/*.php') ?: [] as $file) {
     uses(in_array(basename($file), $workspaceWorkflows, true) ? CommittedWorkspaceTestCase::class : TestCase::class)->in($file);
