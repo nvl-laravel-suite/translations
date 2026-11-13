@@ -5,9 +5,17 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+## [7.0.4] - 2026-11-13
+
 ### Fixed
 
 - Match Unicode catalog searches case-insensitively on PostgreSQL `C`-locale clusters via `COLLATE pg_c_utf8`, invalidate OPcache after PHP artifact writes and rollbacks, and harden export and Doctor checks.
+
+<!-- NVL GENERATED CHANGES START -->
+### Changed
+
+- harden package runtime safety, PostgreSQL portability and test performance
+<!-- NVL GENERATED CHANGES END -->
 
 ## [7.0.3] - 2026-11-11
 
