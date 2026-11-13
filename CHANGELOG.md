@@ -5,13 +5,17 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Match Unicode catalog searches case-insensitively on PostgreSQL `C`-locale clusters via `COLLATE pg_c_utf8`, invalidate OPcache after PHP artifact writes and rollbacks, and harden export and Doctor checks.
+
 ## [7.0.3] - 2026-11-11
 
 ### Fixed
 
 - Imports invalidate each PHP catalog in OPcache before reading it. A synchronization that followed a source export in the same PHP-FPM pool could read the pre-export compiled file and revert the exported edit.
 - `TranslationCatalog::update` reports a malformed entry identifier as not found instead of raising a PostgreSQL `22P02` query error.
-- The `key_contains` catalog criterion ignores letter case on PostgreSQL as it already did on MySQL and SQLite.
+- The `key_contains` catalog criterion ignores letter case on PostgreSQL as it already did on SQLite.
 - The doctor's `lock.workspace` check inspects the store that workspace locking uses, including one inherited from `nvl-core.locks.store`.
 - The default scanner patterns capture keys that contain an escaped quote or the other quote character, and a key with empty dot segments such as `Loading...` is recorded as JSON usage. Such keys were reported as unused.
 - Imports and source exports no longer bump `revision` and `updated_at` on entries they leave unchanged, so an editor's expected revision survives an unrelated synchronization or export.
@@ -167,4 +171,4 @@ All notable changes to `nvl/translations` are documented here.
 - Added path, symlink, encoding, malformed-file, duplicate/overlapping-scope, target-overlap, and vendor-write protections.
 - Added scoped literal-key scanning, configurable patterns, retained usage history, and unused-key reporting.
 - Added disabled-by-default authorized workspace APIs with optimistic revisions, independent prune authorization, force requirements, and stable error responses.
-- Added Laravel 12–13, PHP 8.3–8.4, SQLite/MySQL/PostgreSQL quality coverage and the documented migrations and skill publish tags.
+- Added Laravel 12–13, PHP 8.3–8.4, SQLite and PostgreSQL quality coverage and the documented migrations and skill publish tags.

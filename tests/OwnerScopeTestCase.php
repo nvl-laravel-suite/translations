@@ -12,19 +12,24 @@ use Nvl\Ownership\Contracts\OwnershipAdoptionAccess;
 use Nvl\Ownership\Services\OwnerIdentityResolver;
 use Nvl\Ownership\Services\OwnershipAdoptionCoordinator;
 use Nvl\Ownership\Tests\Fixtures\Company;
+use Nvl\Ownership\Tests\Fixtures\OptsIntoAdoptedSchemaReuse;
 use Nvl\Ownership\Tests\OwnershipTestCase;
 use Nvl\Ownership\ValueObjects\OwnershipAdoptionPlan;
 use Nvl\Ownership\ValueObjects\OwnershipMapping;
 use Nvl\Ownership\ValueObjects\OwnershipOperation;
 use Nvl\Support\Providers\LocaleServiceProvider;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
+use Nvl\Translations\Definitions\Tables\TranslationsTables;
 use Nvl\Translations\Providers\TranslationsServiceProvider;
 use Nvl\Translations\Tests\Fixtures\ConfiguredOverride;
 use Nvl\Translations\Tests\Fixtures\TranslationApiAuthorizationFake;
+use PHPUnit\Framework\Attributes\PreCondition;
 
 /** Uses native owners and a real nonempty historical copy without outer test transactions. */
 abstract class OwnerScopeTestCase extends OwnershipTestCase
 {
+    use OptsIntoAdoptedSchemaReuse;
+
     public const string Tenant = 'c587b7fb-a18e-47a8-9d16-78c983e49101';
 
     public const string Override = 'c587b7fb-a18e-47a8-9d16-78c983e49102';
@@ -44,25 +49,12 @@ abstract class OwnerScopeTestCase extends OwnershipTestCase
         $app['config']->set(['nvl-translations.models.override' => ConfiguredOverride::class, 'nvl-translations.ownership.scoped' => true, 'nvl-translations.ownership.keys' => ['headline', 'legacy.copy'], 'nvl-translations.migrations.enabled' => false]);
     }
 
-    /** Rehearse the actual package adoption before admitting either owner. */
+    /** Bind each application's policies before creating or reusing the adopted schema. */
     protected function setUp(): void
     {
         Relation::morphMap([], false);
         parent::setUp();
         $this->app->instance(TranslationsAuthorization::class, new TranslationApiAuthorizationFake);
-        foreach (glob(__DIR__.'/../database/migrations/*.php') ?: [] as $path) {
-            (require $path)->up();
-        }
-        DB::connection()->getSchemaBuilder()->create('nvl_translations_overrides', static function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->string('key', 191);
-            $table->string('locale', 35);
-            $table->text('value');
-            $table->unsignedBigInteger('revision')->default(1);
-            $table->timestampsTz();
-        });
-        DB::table('nvl_translations_overrides')->insert(['id' => self::Override, 'key' => 'legacy.copy', 'locale' => 'en', 'value' => 'preserved', 'revision' => 9, 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-02 00:00:00']);
-        (require __DIR__.'/../../ownership/database/migrations/ownership/2026_10_18_000001_nvl_ownership_create_adoption_tables.php')->up();
         $this->app->bind(OwnershipAdoptionAccess::class, static fn () => new class implements OwnershipAdoptionAccess
         {
             public function authorize(OwnershipOperation $operation): void {}
@@ -91,6 +83,35 @@ abstract class OwnerScopeTestCase extends OwnershipTestCase
                 return [];
             }
         });
+        if (! $this->hasRetainedOwnershipSchema()) {
+            $this->installAdoptedSchema();
+        }
+        $this->app->make(MaintenanceMode::class)->deactivate();
+        $this->allowOwners();
+    }
+
+    /** Restore the fixed adopted override after the host owners have been seeded. */
+    #[PreCondition]
+    protected function observeAdoptedSchemaAfterSetup(): void
+    {
+        $this->retainAdoptedOwnershipSchema([TranslationsTables::OwnerOverrides]);
+    }
+
+    private function installAdoptedSchema(): void
+    {
+        foreach (glob(__DIR__.'/../database/migrations/*.php') ?: [] as $path) {
+            (require $path)->up();
+        }
+        DB::connection()->getSchemaBuilder()->create(TranslationsTables::OwnerOverrides, static function (Blueprint $table): void {
+            $table->uuid('id')->primary();
+            $table->string('key', 191);
+            $table->string('locale', 35);
+            $table->text('value');
+            $table->unsignedBigInteger('revision')->default(1);
+            $table->timestampsTz();
+        });
+        DB::table(TranslationsTables::OwnerOverrides)->insert(['id' => self::Override, 'key' => 'legacy.copy', 'locale' => 'en', 'value' => 'preserved', 'revision' => 9, 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-02 00:00:00']);
+        (require __DIR__.'/../../ownership/database/migrations/ownership/2026_10_18_000001_nvl_ownership_create_adoption_tables.php')->up();
         $operation = new OwnershipOperation('translations-adopt', 'operator', '1');
         $owner = $this->app->make(OwnerIdentityResolver::class)->reference(Company::findOrFail(7));
         $coordinator = $this->app->make(OwnershipAdoptionCoordinator::class);
@@ -98,7 +119,5 @@ abstract class OwnerScopeTestCase extends OwnershipTestCase
         while (! $coordinator->backfill($this->adoptionPlan, 100, $operation)) {
         }
         $coordinator->activate($this->adoptionPlan, $operation);
-        $this->app->make(MaintenanceMode::class)->deactivate();
-        $this->allowOwners();
     }
 }

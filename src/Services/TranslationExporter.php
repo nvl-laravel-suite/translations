@@ -7,7 +7,6 @@ namespace Nvl\Translations\Services;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Nvl\Support\Enums\SystemActor;
 use Nvl\Support\Events\DomainEventDispatcher;
@@ -383,8 +382,9 @@ final class TranslationExporter
     private function markSynchronized(Collection $rows): void
     {
         $now = CarbonImmutable::now('UTC');
+        $connection = (new TranslationEntry)->getConnection();
 
-        (new TranslationEntry)->getConnection()->transaction(function () use ($rows, $now): void {
+        $connection->transaction(function () use ($rows, $now, $connection): void {
             foreach ($rows as $row) {
                 $sourceHash = TranslationValueHash::make($row->value);
                 $changes = ['last_imported_at' => $now, 'last_exported_at' => $now];
@@ -394,7 +394,7 @@ final class TranslationExporter
                         'source_hash' => $sourceHash,
                         'sync_status' => TranslationSyncStatus::Synchronized->value,
                         'conflict_metadata' => null,
-                        'revision' => DB::raw('revision + 1'),
+                        'revision' => $connection->raw('revision + 1'),
                         'updated_at' => $now,
                     ];
                 }

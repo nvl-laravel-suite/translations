@@ -69,6 +69,7 @@ final class TranslationArtifactWriter
                 }
 
                 $mutatedPaths[$write['path']] = true;
+                $this->invalidateOpcache($write['path']);
                 unset($temporaryPaths[$write['path']]);
             }
 
@@ -84,6 +85,7 @@ final class TranslationArtifactWriter
                 }
 
                 $mutatedPaths[$delete['path']] = true;
+                $this->invalidateOpcache($delete['path']);
             }
         } catch (Throwable $exception) {
             foreach ($temporaryPaths as $temporaryPath) {
@@ -317,6 +319,8 @@ final class TranslationArtifactWriter
                     );
                 }
 
+                $this->invalidateOpcache($path);
+
                 continue;
             }
 
@@ -336,6 +340,15 @@ final class TranslationArtifactWriter
             if ($original['permissions'] !== null) {
                 @chmod($path, $original['permissions']);
             }
+
+            $this->invalidateOpcache($path);
+        }
+    }
+
+    private function invalidateOpcache(string $path): void
+    {
+        if (str_ends_with($path, '.php') && function_exists('opcache_invalidate')) {
+            @opcache_invalidate($path, true);
         }
     }
 

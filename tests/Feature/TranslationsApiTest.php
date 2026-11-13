@@ -203,3 +203,16 @@ test('management API accepts an explicit null clear and serializes native entry 
         ->and($payload['createdAt'])->toBe($fresh->created_at?->format(DATE_ATOM))
         ->and($payload['updatedAt'])->toBe($fresh->updated_at?->format(DATE_ATOM));
 });
+
+test('management API searches Cyrillic translation values case-insensitively', function (): void {
+    File::put($this->apiSource.'/bg.json', json_encode([
+        'notice' => 'Съобщение за плащане',
+        'other' => 'Друг текст',
+    ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+    $this->postJson('/nvl/api/v1/translations/import', ['scope' => 'app', 'format' => 'json'])->assertSuccessful();
+
+    $this->getJson('/nvl/api/v1/translations?filter[search]='.urlencode('съобщение'))
+        ->assertSuccessful()
+        ->assertJsonCount(1, 'data.entries.items')
+        ->assertJsonPath('data.entries.items.0.key', 'notice');
+});

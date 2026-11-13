@@ -10,6 +10,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Query\Grammars\PostgresGrammar;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 use Nvl\Support\Enums\SystemActor;
@@ -447,8 +448,10 @@ final class TranslationCatalog
             }
             $column = $query->getQuery()->getGrammar()->wrap('key');
             self::ensureSafeWrappedColumn($column);
-            $like = $query->getModel()->getConnection()->getDriverName() === 'pgsql' ? 'ILIKE' : 'LIKE';
-            $query->whereRaw("{$column} {$like} ? ESCAPE '!'", ['%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $criteria['key_contains']).'%']);
+            $keyExpression = $query->getModel()->getConnection()->getDriverName() === 'pgsql'
+                ? "({$column} COLLATE pg_c_utf8) ILIKE ? ESCAPE '!'"
+                : "{$column} LIKE ? ESCAPE '!'";
+            $query->whereRaw($keyExpression, ['%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $criteria['key_contains']).'%']);
         }
         foreach (['search' => 'filterSearch', 'missing_value' => 'filterMissingValue', 'changed_since_import' => 'filterChangedSinceImport', 'is_missing' => 'filterIsMissing'] as $key => $method) {
             if (array_key_exists($key, $criteria)) {
@@ -480,24 +483,42 @@ final class TranslationCatalog
      */
     private function filterSearch(Builder $query, mixed $value): Builder
     {
-        $search = is_string($value) ? mb_strtolower(trim($value)) : '';
-        if ($search === '') {
+        $trimmed = is_string($value) ? trim($value) : '';
+        if ($trimmed === '') {
             return $query;
         }
 
         $grammar = $query->getQuery()->getGrammar();
-        $needle = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search).'%';
+        $isPostgres = $grammar instanceof PostgresGrammar;
+        $variants = $isPostgres
+            ? [$trimmed]
+            : array_values(array_unique([
+                $trimmed,
+                mb_strtolower($trimmed, 'UTF-8'),
+                mb_strtoupper($trimmed, 'UTF-8'),
+                mb_convert_case($trimmed, MB_CASE_TITLE, 'UTF-8'),
+            ]));
+        $needles = array_map(
+            static fn (string $variant): string => '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $variant).'%',
+            $variants,
+        );
 
-        return $query->where(static function (Builder $builder) use ($grammar, $needle): void {
-            foreach (['scope_type', 'scope_name', 'locale', 'format', 'group', 'key', 'value'] as $index => $column) {
+        return $query->where(static function (Builder $builder) use ($grammar, $isPostgres, $needles): void {
+            $first = true;
+            foreach (['scope_type', 'scope_name', 'locale', 'format', 'group', 'key', 'value'] as $column) {
                 $wrapped = $grammar->wrap($column);
                 self::ensureSafeWrappedColumn($wrapped);
-                $expression = "LOWER(COALESCE({$wrapped}, '')) LIKE ? ESCAPE '!'";
+                $expression = $isPostgres
+                    ? "(COALESCE({$wrapped}, '') COLLATE pg_c_utf8) ILIKE ? ESCAPE '!'"
+                    : "LOWER(COALESCE({$wrapped}, '')) LIKE LOWER(?) ESCAPE '!'";
 
-                if ($index === 0) {
-                    $builder->whereRaw($expression, [$needle]);
-                } else {
-                    $builder->orWhereRaw($expression, [$needle]);
+                foreach ($needles as $needle) {
+                    if ($first) {
+                        $builder->whereRaw($expression, [$needle]);
+                        $first = false;
+                    } else {
+                        $builder->orWhereRaw($expression, [$needle]);
+                    }
                 }
             }
         });

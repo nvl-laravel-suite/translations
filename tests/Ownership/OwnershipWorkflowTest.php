@@ -137,4 +137,4 @@ it('preserves historical identity and revision through explicit adoption of popu
         expect(ConfiguredOverride::find(OwnerScopeTestCase::Override))->toBeNull();
     });
     expect(DB::table('nvl_translations_overrides')->where('id', OwnerScopeTestCase::Override)->value('revision'))->toBe(9);
-});
+})->group('fresh-adoption');

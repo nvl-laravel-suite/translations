@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Schema;
 use Nvl\Support\Config\PackageOptions;
 use Nvl\Support\Config\PackageStorage;
 use Nvl\Support\Ownership\Contracts\OwnershipReadiness;
-use Nvl\Support\Ownership\Exceptions\OwnershipException;
 use Nvl\Support\Ownership\Services\OwnershipConstraintInspector;
 use Nvl\Support\Ownership\Services\OwnershipResourceRegistry;
 use Nvl\Translations\Contracts\TranslationsAuthorization;
@@ -66,12 +65,21 @@ final readonly class TranslationsDoctor
         }
         try {
             $this->overrideKeys->all();
-            $this->readiness->assertActive('translations.overrides');
             $model = new $definition->model;
-            $this->constraints->assertUniqueIndexes($model->getConnection(), $model->getTable(), [['owner_scope_key', 'key', 'locale']]);
+            $connection = $model->getConnection();
+            $probe = fn () => $this->readiness->assertActive('translations.overrides');
+            if ($connection->transactionLevel() > 0) {
+                $connection->transaction(function () use ($probe, $connection, $model): void {
+                    $probe();
+                    $this->constraints->assertUniqueIndexes($connection, $model->getTable(), [['owner_scope_key', 'key', 'locale']]);
+                });
+            } else {
+                $probe();
+                $this->constraints->assertUniqueIndexes($connection, $model->getTable(), [['owner_scope_key', 'key', 'locale']]);
+            }
 
             return [['key' => 'ownership.overrides', 'severity' => 'error', 'passed' => true, 'message' => 'Native override storage, keys and identity uniqueness are ready.']];
-        } catch (OwnershipException $exception) {
+        } catch (Throwable $exception) {
             return [['key' => 'ownership.overrides', 'severity' => 'error', 'passed' => false, 'message' => $exception->getMessage()]];
         }
     }
@@ -133,13 +141,11 @@ final readonly class TranslationsDoctor
                 continue;
             }
 
-            $hasIdentityIndex = false;
-            foreach ($schema->getIndexes($table) as $index) {
-                if ($index['unique'] && $index['columns'] === ['identity_hash']) {
-                    $hasIdentityIndex = true;
-
-                    break;
-                }
+            try {
+                $this->constraints->assertUniqueIndexes($schema->getConnection(), $table, [['identity_hash']]);
+                $hasIdentityIndex = true;
+            } catch (Throwable) {
+                $hasIdentityIndex = false;
             }
             $checks[] = [
                 'key' => "schema.identity.{$table}",
