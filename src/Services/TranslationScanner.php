@@ -34,7 +34,7 @@ final class TranslationScanner
     public function scan(Authenticatable|SystemActor $actor): array
     {
         $this->workspace->authorize($actor, TranslationsAbility::Scan);
-        $result = $this->lock->execute('scan', fn (): array => $this->collect());
+        $result = $this->lock->execute('scan', (new TranslationScanRun)->getConnection(), fn (): array => $this->collect());
         $this->domainEvents->dispatch(new TranslationsScanned($result), (new TranslationScanRun)->getConnection());
 
         return $result;
@@ -122,7 +122,9 @@ final class TranslationScanner
             $scanRun->scanned_at = $scannedAt;
             $scanRun->files = count($files);
             $scanRun->hits = count($rows);
-            $scanRun->save();
+            if ($scanRun->save() !== true) {
+                throw new TranslationsException("Translation scan run [{$scanId}] was not saved.");
+            }
 
             $retentionDays = TranslationConfiguration::nonNegativeInteger(
                 'nvl-translations.scan.retention_days',
@@ -170,6 +172,7 @@ final class TranslationScanner
             if (! File::isDirectory($root)) {
                 continue;
             }
+            $this->paths->assertTree($root);
 
             foreach (File::allFiles($root) as $file) {
                 $relativePath = str_replace('\\', '/', $file->getRelativePathname());
@@ -228,8 +231,8 @@ final class TranslationScanner
                 continue;
             }
 
-            // Quotes are escaped inside the source literal but not in the catalog key.
-            $parsed = $this->parseUsageKey(preg_replace('/\\\\([\'"\\\\])/', '$1', $rawKey) ?? $rawKey);
+            $literal = $this->literalKey($rawKey, $offset > 0 ? $contents[$offset - 1] : '', $filePath);
+            $parsed = $literal === null ? null : $this->parseUsageKey($literal);
             if ($parsed === null) {
                 continue;
             }
@@ -256,12 +259,36 @@ final class TranslationScanner
     }
 
     /**
+     * Return the exact key a quoted literal names, or null when the literal interpolates at runtime.
+     *
+     * Only escaped quotes and backslashes, plus an escaped dollar in a double-quoted PHP string, are unescaped. A
+     * double-quoted string in a PHP file is tokenized so only real interpolation (`$name`, `{$...}`) is excluded; dollars
+     * in JavaScript quotes are literal, and a template literal is excluded only when it holds `${`.
+     */
+    private function literalKey(string $raw, string $quote, string $filePath): ?string
+    {
+        if ($quote === '`') {
+            return str_contains($raw, '${') ? null : $raw;
+        }
+        if ($quote === '"' && str_ends_with($filePath, '.php')) {
+            $tokens = token_get_all('<?php "'.$raw.'";');
+            if (! is_array($tokens[1] ?? null) || $tokens[1][0] !== T_CONSTANT_ENCAPSED_STRING) {
+                return null;
+            }
+
+            return preg_replace('/\\\\([\'"\\\\$])/', '$1', $raw) ?? $raw;
+        }
+
+        // Quotes are escaped inside the source literal but not in the catalog key.
+        return preg_replace('/\\\\([\'"\\\\])/', '$1', $raw) ?? $raw;
+    }
+
+    /**
      * @return array{scope_type:string|null,scope_name:string|null,format:string,full_key:string}|null
      */
-    private function parseUsageKey(string $rawKey): ?array
+    private function parseUsageKey(string $key): ?array
     {
-        $key = trim($rawKey);
-        if ($key === '' || str_contains($key, '$')) {
+        if ($key === '') {
             return null;
         }
 
@@ -272,8 +299,6 @@ final class TranslationScanner
 
         if (str_contains($key, '::')) {
             [$namespace, $rest] = array_pad(explode('::', $key, 2), 2, '');
-            $namespace = trim($namespace);
-            $rest = trim($rest);
             if ($rest === '') {
                 return null;
             }

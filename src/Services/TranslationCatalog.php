@@ -21,6 +21,7 @@ use Nvl\Translations\Enums\TranslationSyncStatus;
 use Nvl\Translations\Events\TranslationEntryUpdated;
 use Nvl\Translations\Exceptions\InvalidTranslationInputException;
 use Nvl\Translations\Exceptions\StaleTranslationWorkspaceException;
+use Nvl\Translations\Exceptions\TranslationsException;
 use Nvl\Translations\Models\TranslationEntry;
 use Nvl\Translations\Models\TranslationScanRun;
 use Nvl\Translations\Models\TranslationUsage;
@@ -70,6 +71,7 @@ final class TranslationCatalog
         }
         $updated = $this->lock->execute(
             'update',
+            (new TranslationEntry)->getConnection(),
             fn (): TranslationEntry => (new TranslationEntry)->getConnection()->transaction(function () use ($actor, $entryId, $data): TranslationEntry {
                 $model = TranslationEntry::query()
                     ->lockForUpdate()
@@ -90,7 +92,9 @@ final class TranslationCatalog
                     'sync_status' => $matchesSource ? 'synchronized' : 'edited',
                     'conflict_metadata' => null,
                 ]);
-                $model->save();
+                if ($model->save() !== true) {
+                    throw new TranslationsException("Translation entry [{$model->id}] was not saved.");
+                }
 
                 $model->refresh();
 

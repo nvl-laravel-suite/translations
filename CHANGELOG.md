@@ -5,6 +5,19 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- `nvl:adopt translations` verify and activate take the workspace process lock before the run row, the order apply uses, through Core's `AdoptionAdapter::aroundVerification()` hook; they no longer wait on the lock while holding the run row.
+- Resuming `nvl:adopt translations` re-reads the committed source prefix of every stored checkpoint, completed ones included, and refuses the run when a staged entry or usage behind the cursor was deleted or changed.
+- A workspace operation called inside a caller's open transaction keeps the workspace lock until that transaction's outermost commit or rollback on the catalog connection, so its row locks are never left behind without the lock; a transaction on another connection never releases it. Later operations in that transaction reuse the lock only while the lock store still names this process its owner, so after a failed COMMIT the next transaction acquires a fresh lock.
+- Import, scan and export reject a symbolic link anywhere below a language, scan or export root instead of silently skipping it, which marked entries missing and skipped stale-file pruning.
+- The scanner keeps keys exactly as written, including surrounding whitespace and literal `$`; it skips only double-quoted PHP strings that interpolate and template literals that contain `${`.
+- Catalog edits, missing markers and the completed scan marker require a successful save; a vetoed save throws `TranslationsException`, rolls back, and fires no `TranslationEntryUpdated`.
+
+### Changed
+
+- Requires `nvl/core` 7.3.0 for the adoption verification hook and checkpoint confirmation.
+
 ## [7.2.0] - 2026-11-16
 
 ### Added

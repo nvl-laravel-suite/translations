@@ -7,6 +7,7 @@ namespace Nvl\Translations\Adoption;
 use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Connection;
+use Illuminate\Database\Query\Builder;
 use Nvl\Support\Adoption\AdoptionAdapter;
 use Nvl\Support\Adoption\AdoptionBatch;
 use Nvl\Support\Adoption\AdoptionPlan;
@@ -19,12 +20,14 @@ use Nvl\Translations\Services\SourceTranslationWorkspace;
 use Nvl\Translations\Services\TranslationProcessLock;
 use Nvl\Translations\Support\LegacyTranslationCatalogReview;
 use Nvl\Translations\Support\LegacyTranslationCatalogRows;
+use stdClass;
 
 /**
  * Adopts a standalone legacy catalog through nvl:adopt: entries first, then usages, in checkpointed keyset batches.
  *
  * Options match TranslationCatalogAdopter: connection, entries_table, usages_table and the reviewed source_values
- * baselines. Each batch transaction, commit included, and each verification run under the workspace process lock.
+ * baselines. Each batch transaction and each verify or activate transaction, commits included, run under the workspace
+ * process lock, which is always taken before the run row.
  *
  * @internal
  *
@@ -33,6 +36,8 @@ use Nvl\Translations\Support\LegacyTranslationCatalogRows;
 final class TranslationCatalogAdoptionAdapter extends AdoptionAdapter
 {
     private const string Version = '1';
+
+    private const int CheckpointPage = 500;
 
     /** @var Options */
     private readonly array $catalogOptions;
@@ -83,19 +88,44 @@ final class TranslationCatalogAdoptionAdapter extends AdoptionAdapter
 
     public function nextBatch(AdoptionStep $step, ?array $cursor, int $limit): AdoptionBatch
     {
-        $table = $this->table($step->id);
-        $query = $this->catalog->origin($this->catalogOptions)->table($table['source'])->useWritePdo()->select($table['columns']);
-        $records = $step->page($query, $cursor, $limit + 1)->get()->all();
+        $records = $step->page($this->source($step), $cursor, $limit + 1)->get()->all();
         $page = array_slice($records, 0, $limit);
-        $baselines = $this->catalogOptions['source_values'];
-        $rows = [];
-        $last = null;
-        foreach ($page as $record) {
-            $rows[] = $step->id === 'entries' ? $this->rows->entry($record, $baselines) : $this->rows->usage($record);
-            $last = $record;
-        }
+        $last = $page === [] ? null : $page[array_key_last($page)];
 
-        return new AdoptionBatch($step->id, $cursor, $last === null ? $cursor : $step->cursorFrom($last), $rows, count($records) <= $limit);
+        return new AdoptionBatch($step->id, $cursor, $last === null ? $cursor : $step->cursorFrom($last), $this->map($step, $page), count($records) <= $limit);
+    }
+
+    /**
+     * Re-read the committed source prefix in keyset pages, map it as writeBatch() did and require every mapped row to be
+     * staged unchanged. The prefix must still hold exactly the checkpoint's processed rows.
+     */
+    public function assertCheckpoint(AdoptionStep $step, ?array $cursor, int $processed): void
+    {
+        $destination = $this->connection();
+        $table = $this->table($step->id);
+        $seen = 0;
+        $after = null;
+        do {
+            $page = $step->page($step->through($this->source($step), $cursor), $after, self::CheckpointPage)->get()->all();
+            if ($page === []) {
+                break;
+            }
+            $seen += count($page);
+            $after = $step->cursorFrom($page[array_key_last($page)]);
+            /** @var list<array{id:string, identity_hash:string, ...<string, bool|int|string|null>}> $rows */
+            $rows = $this->map($step, $page);
+            $compared = $this->catalog->compare($destination, $table, $rows);
+            if ($compared['conflicts'] !== []) {
+                throw new TranslationsException('Translation catalog drift behind the cursor: '.$compared['conflicts'][0]);
+            }
+            if ($compared['pending'] !== []) {
+                throw new TranslationsException("Translation adoption step [{$step->id}] lost staged row [{$compared['pending'][0]['id']}] behind its checkpoint.");
+            }
+        } while (count($page) === self::CheckpointPage);
+
+        if ($seen !== $processed) {
+            throw new TranslationsException("Translation adoption step [{$step->id}] checkpoint counts {$processed} source rows, but its committed prefix holds {$seen}.");
+        }
     }
 
     /**
@@ -103,7 +133,7 @@ final class TranslationCatalogAdoptionAdapter extends AdoptionAdapter
      */
     public function aroundBatch(Closure $batch): mixed
     {
-        return $this->lock->execute('adopt', static fn (): mixed => $batch());
+        return $this->lock->execute('adopt', $this->connection(), static fn (): mixed => $batch());
     }
 
     /**
@@ -126,9 +156,20 @@ final class TranslationCatalogAdoptionAdapter extends AdoptionAdapter
         return null;
     }
 
+    /**
+     * Take the workspace process lock before the coordinator locks the run row, the order every batch uses.
+     */
+    public function aroundVerification(Closure $operation): mixed
+    {
+        return $this->lock->execute('verify adoption', $this->connection(), static fn (): mixed => $operation());
+    }
+
+    /**
+     * Scan under the workspace lock that aroundVerification() already holds.
+     */
     public function verify(AdoptionPlan $plan): AdoptionVerification
     {
-        $review = $this->lock->execute('verify adoption', fn (): array => $this->catalog->review($this->catalogOptions));
+        $review = $this->catalog->review($this->catalogOptions);
         $missing = max(0, $review['entries'] - $review['staged_entries']) + max(0, $review['usages'] - $review['staged_usages']);
 
         return new AdoptionVerification(
@@ -138,6 +179,30 @@ final class TranslationCatalogAdoptionAdapter extends AdoptionAdapter
             digest: AdoptionPlan::digest([$review['fingerprint'], $review['staged_entries'], $review['staged_usages'], $review['conflicts']]),
             problems: $review['conflicts'],
         );
+    }
+
+    private function source(AdoptionStep $step): Builder
+    {
+        $table = $this->table($step->id);
+
+        return $this->catalog->origin($this->catalogOptions)->table($table['source'])->useWritePdo()->select($table['columns']);
+    }
+
+    /**
+     * Map source records exactly as they are staged.
+     *
+     * @param  array<int, stdClass>  $records
+     * @return list<array<string, mixed>>
+     */
+    private function map(AdoptionStep $step, array $records): array
+    {
+        $baselines = $this->catalogOptions['source_values'];
+        $rows = [];
+        foreach ($records as $record) {
+            $rows[] = $step->id === 'entries' ? $this->rows->entry($record, $baselines) : $this->rows->usage($record);
+        }
+
+        return $rows;
     }
 
     /**

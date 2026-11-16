@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Nvl\Translations\Services;
 
+use FilesystemIterator;
 use Nvl\Translations\Exceptions\InvalidTranslationInputException;
 use Nvl\Translations\Exceptions\TranslationsException;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use SplFileInfo;
 
 /**
  * Validates configured roots and constructs safe translation file paths.
@@ -44,6 +48,30 @@ final class TranslationPathGuard
         return $realPath === false
             ? $normalized
             : $this->trimTrailingSeparators($this->normalizeSeparators($realPath));
+    }
+
+    /**
+     * Reject a symbolic link anywhere below an existing root. Directory listings do not follow links, so a linked
+     * directory would otherwise vanish from imports, scans and stale-file pruning instead of failing.
+     */
+    public function assertTree(string $root): void
+    {
+        $path = $this->root($root);
+        if (! is_dir($path)) {
+            return;
+        }
+
+        $entries = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST,
+        );
+        foreach ($entries as $entry) {
+            if ($entry instanceof SplFileInfo && $entry->isLink()) {
+                throw new TranslationsException(
+                    "Translation path [{$this->normalizeSeparators($entry->getPathname())}] is a symbolic link.",
+                );
+            }
+        }
     }
 
     /**

@@ -29,6 +29,7 @@ use Nvl\Translations\Ownership\TranslationsResourceRegistrar;
 use Nvl\Translations\Services\ConfiguredTranslationsAuthorization;
 use Nvl\Translations\Services\DatabaseTranslationOverrideRepository;
 use Nvl\Translations\Services\TranslationOverrideModels;
+use Nvl\Translations\Services\TranslationProcessLock;
 use Nvl\Translations\Services\TranslationsDoctor;
 
 /**
@@ -75,6 +76,7 @@ final class TranslationsServiceProvider extends ServiceProvider implements Owner
         $this->app->register(SupportServiceProvider::class);
         $this->mergePackageConfiguration(__DIR__.'/../../config/nvl-translations.php', 'translations');
         $this->app->singletonIf(TranslationOverrideModels::class);
+        $this->app->singletonIf(TranslationProcessLock::class);
         $this->app->scopedIf(TranslationOverrideRepository::class, DatabaseTranslationOverrideRepository::class);
         $this->app->booted(function (): void {
             $owned = config('nvl-ownership.enabled') === true && config('nvl-translations.ownership.scoped') === true;

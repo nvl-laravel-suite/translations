@@ -15,7 +15,7 @@
         "ext-tokenizer": "*",
         "laravel/framework": "^13.0",
         "nesbot/carbon": "^2.72 || ^3.0",
-        "nvl/core": "^7.2.0",
+        "nvl/core": "^7.3.0",
         "php": "^8.4"
     },
     "require-dev": {

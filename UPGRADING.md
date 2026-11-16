@@ -16,6 +16,14 @@ Owner copy continues through `TranslationOverrideRepository` inside native Owner
 
 Adoption runs through nvl:adopt with reviewed, checkpointed batches and an explicit activate step. Committed batches survive a failure. Keep writers stopped until verify and activate pass. Run `php artisan nvl:adopt translations plan|apply|verify|activate <manifest.json>` with the options `TranslationCatalogAdopter` takes (`connection`, `entries_table`, `usages_table`, `source_values`); entries are staged before usages, and a staged row that drifts from its reviewed baseline blocks resume. `TranslationCatalogAdopter::plan()`, `apply()` and `verify()` remain available unchanged.
 
+### Unreleased
+
+- Requires `nvl/core` 7.3.0. A translations adoption run resumes only when every stored checkpoint still matches its staged rows; restore a deleted or changed staged row, or start a new run, before resuming.
+- A workspace operation inside your own open transaction now keeps the workspace lock until that transaction commits or rolls back; other processes wait or receive `TranslationWorkspaceLockedException` meanwhile. Keep such transactions short.
+- Replace symbolic links below language, scan and export roots with real directories; import, scan and export now reject them.
+- Rescan after upgrading: keys with surrounding whitespace or a literal `$` are now recorded exactly, so unused reports for them change.
+- A model observer that vetoes a `TranslationEntry` or `TranslationScanRun` save now makes the operation throw `TranslationsException` instead of reporting success.
+
 See [README](README.md) for native signatures and retained source, scan, backup and lock configuration.
 
 ## Next major: isolated schema identities

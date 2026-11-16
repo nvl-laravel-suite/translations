@@ -63,7 +63,7 @@ final readonly class TranslationCatalogAdopter
         $options = $this->catalog->options($source);
         $this->requireCommittedCatalog();
 
-        return $this->lock->execute('adopt', function () use ($fingerprint, $options): array {
+        return $this->lock->execute('adopt', $this->catalog->destination(), function () use ($fingerprint, $options): array {
             $review = $this->catalog->review($options);
             $this->assertReviewed($review, $fingerprint);
 
@@ -87,7 +87,7 @@ final readonly class TranslationCatalogAdopter
         $options = $this->catalog->options($source);
         $this->requireCommittedCatalog();
 
-        return $this->lock->execute('verify adoption', fn (): array => $this->reconcile($options, $fingerprint));
+        return $this->lock->execute('verify adoption', $this->catalog->destination(), fn (): array => $this->reconcile($options, $fingerprint));
     }
 
     private function requireCommittedCatalog(): void

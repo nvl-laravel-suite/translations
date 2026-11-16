@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Nvl\Support\Enums\SystemActor;
+use Nvl\Translations\Events\TranslationEntryUpdated;
 use Nvl\Translations\Exceptions\TranslationsException;
 use Nvl\Translations\Exceptions\TranslationWorkspaceLockedException;
 use Nvl\Translations\Models\TranslationEntry;
@@ -593,4 +595,73 @@ test('status command constrains aggregates to explicitly selected scopes', funct
     ])->expectsOutputToContain('"edited": 1')
         ->doesntExpectOutputToContain('"missing"')
         ->assertSuccessful();
+});
+
+test('nested directory symlinks cannot mark catalog entries missing or publish pruning', function (): void {
+    File::ensureDirectoryExists($this->catalogSource.'/en/admin');
+    File::put($this->catalogSource.'/en/admin/users.php', "<?php\n\nreturn ['title' => 'Users'];\n");
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'php');
+    expect(TranslationEntry::query()->where('is_missing', false)->count())->toBe(1);
+
+    $outside = $this->catalogRoot.'/outside/admin';
+    File::ensureDirectoryExists(dirname($outside));
+    File::moveDirectory($this->catalogSource.'/en/admin', $outside);
+    symlink($outside, $this->catalogSource.'/en/admin');
+    File::ensureDirectoryExists($this->catalogRoot.'/outside/legacy');
+    File::put($this->catalogRoot.'/outside/legacy/stale.php', "<?php\n\nreturn ['old' => 'Old'];\n");
+    File::ensureDirectoryExists($this->catalogTarget.'/en');
+    symlink($this->catalogRoot.'/outside/legacy', $this->catalogTarget.'/en/legacy');
+    $code = $this->catalogRoot.'/code';
+    File::ensureDirectoryExists($code.'/real');
+    File::put($code.'/real/Example.php', "<?php\n\n__('Linked');\n");
+    symlink($code.'/real', $code.'/linked');
+
+    expect(fn () => app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'php'))
+        ->toThrow(TranslationsException::class, 'symbolic link')
+        ->and(TranslationEntry::query()->where('is_missing', true)->count())->toBe(0)
+        ->and(fn () => app(TranslationScanner::class)->scan(SystemActor::Background))->toThrow(TranslationsException::class, 'symbolic link')
+        ->and(TranslationScanRun::query()->count())->toBe(0);
+
+    File::delete($this->catalogSource.'/en/admin');
+    File::copyDirectory($outside, $this->catalogSource.'/en/admin');
+
+    expect(fn () => app(TranslationExporter::class)->export(SystemActor::Background, ['app'], null, 'php', 'generated', prune: true))
+        ->toThrow(TranslationsException::class, 'symbolic link')
+        ->and(File::exists($this->catalogTarget.'/en/admin/users.php'))->toBeFalse()
+        ->and(File::exists($this->catalogRoot.'/outside/legacy/stale.php'))->toBeTrue();
+});
+
+test('rejects vetoed catalog edits without an update event', function (): void {
+    File::put($this->catalogSource.'/en.json', '{"Save":"Save"}');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
+    $entry = TranslationEntry::query()->sole();
+    Event::fake([TranslationEntryUpdated::class]);
+    TranslationEntry::saving(static fn (): bool => false);
+
+    expect(fn () => app(TranslationCatalog::class)->update(SystemActor::Background, $entry, ['value' => 'Vetoed', 'expected_revision' => $entry->revision]))
+        ->toThrow(TranslationsException::class, 'was not saved')
+        ->and($entry->fresh()?->value)->toBe('Save');
+    Event::assertNotDispatched(TranslationEntryUpdated::class);
+});
+
+test('rolls back usages when the completed scan marker is vetoed', function (): void {
+    $code = $this->catalogRoot.'/code';
+    File::ensureDirectoryExists($code);
+    File::put($code.'/Example.php', "<?php\n\n__('Save');\n");
+    TranslationScanRun::saving(static fn (): bool => false);
+
+    expect(fn () => app(TranslationScanner::class)->scan(SystemActor::Background))->toThrow(TranslationsException::class, 'was not saved')
+        ->and(TranslationUsage::query()->count())->toBe(0)
+        ->and(TranslationScanRun::query()->count())->toBe(0);
+});
+
+test('rejects a vetoed missing marker without committing the import', function (): void {
+    File::put($this->catalogSource.'/en.json', '{"Save":"Save","Gone":"Gone"}');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
+    File::put($this->catalogSource.'/en.json', '{"Save":"Saved"}');
+    TranslationEntry::updating(static fn (TranslationEntry $entry): bool => ! $entry->is_missing);
+
+    expect(fn () => app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json'))->toThrow(TranslationsException::class, 'was not marked missing')
+        ->and(TranslationEntry::query()->where('key', 'Save')->sole()->value)->toBe('Save')
+        ->and(TranslationEntry::query()->where('is_missing', true)->count())->toBe(0);
 });

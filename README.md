@@ -156,7 +156,7 @@ Conflict strategies:
 
 Missing configured directories are reported and skipped. A successfully read selected format marks rows absent from that source as missing; parse errors never cause missing markers.
 
-PHP catalog loading is output-buffered: a catalog that emits output is rejected instead of corrupting a console or API response. Each PHP catalog is invalidated in OPcache before it is read, so an import never synchronizes from a compiled copy that predates the current file. Files or directories reached through symbolic links are rejected.
+PHP catalog loading is output-buffered: a catalog that emits output is rejected instead of corrupting a console or API response. Each PHP catalog is invalidated in OPcache before it is read, so an import never synchronizes from a compiled copy that predates the current file. Import, scan and export reject any symbolic link below a language, scan or export root.
 
 
 ## Configure output directories
@@ -272,7 +272,7 @@ php artisan nvl:translations:unused --help
 
 Dynamic keys cannot be discovered statically. Preserve them in unused reports with `nvl-translations.scan_allowlist`.
 
-The scanner is intentionally heuristic: it records only configured literal-key call patterns. The package defaults cover Laravel helpers, `Lang::get`, `Lang::choice`, Blade `@lang`/`@choice`, and JavaScript `t`/`$t`, including single- or double-quoted keys that contain the other quote or an escaped one; override `scan.patterns` only with tested regular expressions whose first capture group is the key. A key without a namespace counts as a PHP group key only when it is made of non-empty dot-separated segments, so `Loading...` is JSON usage. Non-namespaced usages belong to the `app` scope; an unknown namespace is skipped rather than treated as a global usage. Successful scans prune usage history older than `scan.retention_days` when retention is greater than zero.
+The scanner is intentionally heuristic: it records only configured literal-key call patterns. The package defaults cover Laravel helpers, `Lang::get`, `Lang::choice`, Blade `@lang`/`@choice`, and JavaScript `t`/`$t`, including single- or double-quoted keys that contain the other quote or an escaped one. Keys are recorded exactly as written, including surrounding whitespace and literal `$`; only a double-quoted PHP string that interpolates (`"Hello $name"`) is skipped; override `scan.patterns` only with tested regular expressions whose first capture group is the key. A key without a namespace counts as a PHP group key only when it is made of non-empty dot-separated segments, so `Loading...` is JSON usage. Non-namespaced usages belong to the `app` scope; an unknown namespace is skipped rather than treated as a global usage. Successful scans prune usage history older than `scan.retention_days` when retention is greater than zero.
 
 Each successful scan stores a durable run marker, including zero-hit scans. Latest-scan unused reports therefore do not reuse stale hits, and usage matching keeps PHP and JSON identities separate. Before the first completed scan the report lists every entry and `nvl:translations:unused` says so. Ambiguous namespace names must be resolved explicitly through `scan.namespaces`.
 
@@ -288,7 +288,7 @@ Workspace synchronization uses an atomic cache lock:
 ],
 ```
 
-All application nodes must use the same lock-capable cache store. Size the lock lifetime above the longest expected import, export, or scan.
+All application nodes must use the same lock-capable cache store. Size the lock lifetime above the longest expected import, export, or scan. An operation called inside your own open transaction keeps the lock until that transaction commits or rolls back, and later operations on the same connection in that transaction reuse it.
 
 
 ## Operational workflow

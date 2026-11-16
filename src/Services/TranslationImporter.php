@@ -76,7 +76,7 @@ final class TranslationImporter
      */
     public function import(Authenticatable|SystemActor $actor, array|TranslationSelection $scopeTokens = [], string $format = 'both', bool $dryRun = false): array
     {
-        $result = $this->lock->execute('sync', fn (): array => $this->synchronize($actor, $scopeTokens, $format, $dryRun));
+        $result = $this->lock->execute('sync', (new TranslationEntry)->getConnection(), fn (): array => $this->synchronize($actor, $scopeTokens, $format, $dryRun));
         if (! $dryRun) {
             $this->domainEvents->dispatch(new TranslationsImported($result), (new TranslationEntry)->getConnection());
         }
@@ -131,6 +131,7 @@ final class TranslationImporter
                 continue;
             }
 
+            $this->paths->assertTree($scope->path);
             $parsed = $this->readScope($scope, $selection);
             $summary['files'] += $parsed['files'];
             $summary['entries'] += count($parsed['rows']);
@@ -609,11 +610,8 @@ final class TranslationImporter
 
                     $missing++;
 
-                    if (! $dryRun) {
-                        $entry->update([
-                            'is_missing' => true,
-                            'sync_status' => 'missing',
-                        ]);
+                    if (! $dryRun && $entry->update(['is_missing' => true, 'sync_status' => 'missing']) !== true) {
+                        throw new TranslationsException("Translation entry [{$entry->id}] was not marked missing.");
                     }
                 }
             }

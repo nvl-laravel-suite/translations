@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Nvl\Translations\Models\TranslationScanRun;
 use Nvl\Translations\Models\TranslationUsage;
 use Nvl\Translations\Services\TranslationProcessLock;
@@ -16,7 +17,7 @@ it('uses the inherited Core store for translation process locking', function ():
     ]);
     $repository = Cache::store('shared-translation-locks');
     Cache::shouldReceive('store')->with('shared-translation-locks')->once()->andReturn($repository);
-    expect(app(TranslationProcessLock::class)->execute('sync', fn (): string => 'synchronized'))->toBe('synchronized');
+    expect(app(TranslationProcessLock::class)->execute('sync', DB::connection(), fn (): string => 'synchronized'))->toBe('synchronized');
 });
 
 it('admits persisted native scan parents and rejects transient factory parents', function (): void {

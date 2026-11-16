@@ -66,7 +66,7 @@ final class TranslationExporter
             throw new TranslationsException('Translation export must start outside an existing catalog database transaction.');
         }
         $selection = TranslationSelection::resolve($scopeTokens, $format);
-        $result = $this->lock->execute('export', function () use ($actor, $selection, $locales, $target, $prune, $dryRun): array {
+        $result = $this->lock->execute('export', (new TranslationEntry)->getConnection(), function () use ($actor, $selection, $locales, $target, $prune, $dryRun): array {
             $connection = (new TranslationEntry)->getConnection();
             if ($dryRun) {
                 $connection->beginTransaction();
@@ -106,6 +106,9 @@ final class TranslationExporter
     ): array {
         $scopes = $this->scopeResolver->resolveScopes($selection->scopeTokens);
         $targetRoots = $this->scopeResolver->resolveExportPaths($scopes, $target);
+        foreach ($targetRoots as $targetRoot) {
+            $this->paths->assertTree($targetRoot);
+        }
         $selectedLocales = $this->normalizeLocales($locales);
         $filesWritten = 0;
         $filesDeleted = 0;

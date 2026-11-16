@@ -231,7 +231,7 @@ test('nvl:adopt stages entries before usages and resumes after an interrupted us
         ->and(TranslationEntry::count())->toBe(0)
         ->and(DB::table(AdoptionStore::Runs)->count())->toBe(0);
 
-    app(TranslationProcessLock::class)->execute('test', static function () use ($options, $plan): void {
+    app(TranslationProcessLock::class)->execute('test', DB::connection(), static function () use ($options, $plan): void {
         expect(fn () => translationAdoption($options)->apply($plan->fingerprint, 2))->toThrow(TranslationWorkspaceLockedException::class)
             ->and(TranslationEntry::count())->toBe(0);
     });
@@ -276,7 +276,7 @@ test('nvl:adopt releases the workspace lock when a batch commit fails', function
     expect(fn () => translationAdoption($options)->apply($fingerprint, 2))->toThrow(RuntimeException::class, 'Injected commit failure')
         ->and($failCommit)->toBeFalse()
         ->and(TranslationEntry::count())->toBe(0)
-        ->and(app(TranslationProcessLock::class)->execute('after failed commit', static fn (): string => 'released'))->toBe('released');
+        ->and(app(TranslationProcessLock::class)->execute('after failed commit', DB::connection(), static fn (): string => 'released'))->toBe('released');
 });
 
 test('nvl:adopt refuses to resume when a reviewed baseline drifted behind the cursor', function (): void {
@@ -304,6 +304,40 @@ test('nvl:adopt refuses to resume when a reviewed baseline drifted behind the cu
     expect($replanned->fingerprint)->not->toBe($fingerprint)
         ->and(fn () => translationAdoption($revised)->apply($fingerprint, 2, $runId))->toThrow(AdoptionException::class, 'changed since review')
         ->and(fn () => translationAdoption($revised)->apply($replanned->fingerprint, 2, $runId))->toThrow(AdoptionException::class, 'different fingerprint')
+        ->and(TranslationEntry::count())->toBe(2)
+        ->and(TranslationUsage::count())->toBe(0);
+});
+
+test('nvl:adopt refuses to resume after a staged row behind an incomplete cursor was deleted', function (): void {
+    $source = seedLegacyCatalogForAdoption();
+    $options = Arr::except($source, 'ids');
+    $fingerprint = translationAdoption($options)->plan()->fingerprint;
+    $inserted = [];
+    interruptTranslationInsert(TranslationsTables::get(TranslationsTables::Entries), 2, $inserted);
+    expect(fn () => translationAdoption($options)->apply($fingerprint, 2))->toThrow(RuntimeException::class, 'Interrupted adoption batch');
+    $runId = (string) DB::table(AdoptionStore::Runs)->value('id');
+
+    DB::table(TranslationsTables::get(TranslationsTables::Entries))->where('id', $source['ids'][0])->delete();
+
+    expect(translationAdoption($options)->plan()->collisions)->toBe([])
+        ->and(fn () => translationAdoption($options)->apply($fingerprint, 2, $runId))->toThrow(TranslationsException::class, "lost staged row [{$source['ids'][0]}]")
+        ->and(TranslationEntry::query()->pluck('id')->all())->toBe([$source['ids'][1]])
+        ->and(DB::table(AdoptionStore::Checkpoints)->value('processed'))->toBe(2);
+});
+
+test('nvl:adopt refuses deletion from a completed dependency before staging dependent usages', function (): void {
+    $source = seedLegacyCatalogForAdoption();
+    $options = Arr::except($source, 'ids');
+    $fingerprint = translationAdoption($options)->plan()->fingerprint;
+    $inserted = [];
+    interruptTranslationInsert(TranslationsTables::get(TranslationsTables::Usages), 1, $inserted);
+    expect(fn () => translationAdoption($options)->apply($fingerprint, 2))->toThrow(RuntimeException::class, 'Interrupted adoption batch')
+        ->and(TranslationEntry::count())->toBe(3);
+    $runId = (string) DB::table(AdoptionStore::Runs)->value('id');
+
+    DB::table(TranslationsTables::get(TranslationsTables::Entries))->where('id', $source['ids'][2])->delete();
+
+    expect(fn () => translationAdoption($options)->apply($fingerprint, 2, $runId))->toThrow(TranslationsException::class, "lost staged row [{$source['ids'][2]}]")
         ->and(TranslationEntry::count())->toBe(2)
         ->and(TranslationUsage::count())->toBe(0);
 });
@@ -422,7 +456,7 @@ test('doctor inspects the lock store that workspace operations actually use', fu
 
     $check = collect(app(TranslationsDoctor::class)->inspect())->firstWhere('key', 'lock.workspace');
 
-    expect(fn () => app(TranslationProcessLock::class)->execute('sync', static fn (): null => null))
+    expect(fn () => app(TranslationProcessLock::class)->execute('sync', DB::connection(), static fn (): null => null))
         ->toThrow(TranslationsException::class, 'does not support atomic locks')
         ->and($check['passed'])->toBeFalse();
 });
@@ -533,4 +567,75 @@ test('the unused command says when no completed scan backs its report', function
     $this->artisan('nvl:translations:unused')
         ->expectsOutputToContain('No completed scan exists')
         ->assertSuccessful();
+});
+
+test('preserves whitespace and literal dollars in scanned translation keys', function (): void {
+    $code = $this->regressionRoot.'/code';
+    File::ensureDirectoryExists($code);
+    File::put($code.'/Prices.php', <<<'PHP'
+        <?php
+        __(' Save ');
+        __('Price: $5');
+        __("Total: \$9");
+        __("Hello $name");
+        __("Hi {$user->name}");
+        PHP);
+    File::put($code.'/prices.js', <<<'JS'
+        t("Cost: $3");
+        JS);
+
+    app(TranslationScanner::class)->scan(SystemActor::Background);
+
+    expect(TranslationUsage::query()->orderBy('full_key')->pluck('full_key')->all())
+        ->toBe([' Save ', 'Cost: $3', 'Price: $5', 'Total: $9']);
+});
+
+test('a transaction on another connection does not release the catalog workspace lease', function (): void {
+    File::put($this->regressionSource.'/en.json', '{"Save":"Save"}');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
+    $entry = TranslationEntry::query()->sole();
+    config(['database.connections.host_side' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']]);
+    $lease = cache()->lock('nvl:translations:workspace', 5);
+
+    DB::transaction(function () use ($entry, $lease): void {
+        DB::connection('host_side')->transaction(static fn () => app(TranslationCatalog::class)->update(SystemActor::Background, $entry, ['value' => 'Outer', 'expected_revision' => $entry->revision]));
+
+        expect($lease->get())->toBeFalse('The host connection\'s commit released the catalog lease while its transaction was open.');
+    });
+
+    expect($lease->get())->toBeTrue()
+        ->and($entry->fresh()?->value)->toBe('Outer');
+    $lease->release();
+});
+
+test('a failed commit leaves no reusable workspace lease for the next transaction', function (): void {
+    File::put($this->regressionSource.'/en.json', '{"Save":"Save"}');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
+    $entry = TranslationEntry::query()->sole();
+    $failCommit = true;
+    Event::listen(TransactionCommitting::class, static function (TransactionCommitting $event) use (&$failCommit): void {
+        if ($failCommit) {
+            $failCommit = false;
+            $event->connection->getPdo()->rollBack();
+
+            throw new RuntimeException('Injected commit failure');
+        }
+    });
+    $edit = static fn (string $value) => DB::transaction(static fn () => app(TranslationCatalog::class)->update(SystemActor::Background, $entry->id, ['value' => $value, 'expected_revision' => $entry->revision]));
+
+    expect(fn () => $edit('Lost'))->toThrow(RuntimeException::class, 'Injected commit failure');
+    // The abandoned lease expires and another process takes the workspace.
+    cache()->lock('nvl:translations:workspace')->forceRelease();
+    $other = cache()->lock('nvl:translations:workspace', 5);
+    expect($other->get())->toBeTrue();
+
+    try {
+        expect(fn () => $edit('Unlocked'))->toThrow(TranslationWorkspaceLockedException::class)
+            ->and($entry->fresh()?->value)->toBe('Save');
+    } finally {
+        $other->release();
+    }
+
+    expect($edit('Locked')->value)->toBe('Locked')
+        ->and(cache()->lock('nvl:translations:workspace', 5)->get())->toBeTrue();
 });
