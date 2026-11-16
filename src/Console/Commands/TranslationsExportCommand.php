@@ -7,6 +7,7 @@ namespace Nvl\Translations\Console\Commands;
 use Illuminate\Console\Command;
 use Nvl\Support\Enums\SystemActor;
 use Nvl\Translations\Services\TranslationExporter;
+use Nvl\Translations\Support\TranslationSelection;
 
 /**
  * Export translation_entries back to translation files.
@@ -20,6 +21,7 @@ final class TranslationsExportCommand extends Command
         {--scope=* : Scope tokens (app,module:name,vendor:package,custom:name)}
         {--locales= : Comma-separated locales}
         {--format=both : php|json|both}
+        {--group-prefix=* : PHP group paths including their descendants}
         {--target=source : Configured export target name}
         {--prune : Delete stale files for selected scopes, locales, and formats}
         {--dry-run : Report the write plan without changing files or rows}
@@ -75,13 +77,14 @@ final class TranslationsExportCommand extends Command
             return self::FAILURE;
         }
 
-        $result = $action->export(SystemActor::Background,
-            $scopes,
-            $locales,
-            $format,
-            $target,
-            (bool) $this->option('prune'),
-            $dryRun,
+        $selection = new TranslationSelection($scopes, $format, (array) $this->option('group-prefix'));
+        $result = $action->export(
+            SystemActor::Background,
+            $selection,
+            locales: $locales,
+            target: $target,
+            prune: (bool) $this->option('prune'),
+            dryRun: $dryRun,
         );
 
         if ($output === 'json') {

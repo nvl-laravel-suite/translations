@@ -30,9 +30,11 @@ Search for the relevant fully qualified service or contract and read only its ma
 - `Nvl\Translations\Models\TranslationScanRun`
 - `Nvl\Translations\Models\TranslationUsage`
 - `Nvl\Translations\Services\TranslationCatalog`
+- `Nvl\Translations\Services\TranslationCatalogAdopter`
 - `Nvl\Translations\Services\TranslationExporter`
 - `Nvl\Translations\Services\TranslationImporter`
 - `Nvl\Translations\Services\TranslationScanner`
+- `Nvl\Translations\Support\TranslationSelection`
 
 ## Nvl\Translations\Contracts\TranslationOverrideRepository
 
@@ -408,7 +410,7 @@ resolved @property (Carbon\CarbonImmutable | null) $updated_at
 
 ```text
 final class Nvl\Translations\Services\TranslationCatalog
-public function __construct(Nvl\Translations\Services\SourceTranslationWorkspace $workspace, Nvl\Translations\Services\TranslationProcessLock $lock, Nvl\Support\Events\DomainEventDispatcher $domainEvents, Nvl\Translations\Services\TranslationScopeResolver $scopeResolver): mixed
+public function __construct(Nvl\Translations\Services\SourceTranslationWorkspace $workspace, Nvl\Translations\Services\TranslationProcessLock $lock, Nvl\Support\Events\DomainEventDispatcher $domainEvents, Nvl\Translations\Services\TranslationScopeResolver $scopeResolver, Nvl\Support\Contracts\TextMatcher $textMatcher): mixed
 public function paginate(Illuminate\Contracts\Auth\Authenticatable|Nvl\Support\Enums\SystemActor $actor, array $criteria=[], int $perPage=25, int $page=1): Illuminate\Contracts\Pagination\LengthAwarePaginator
 @param array<string, mixed> $criteria
 @return LengthAwarePaginator<int, TranslationEntry>
@@ -424,13 +426,33 @@ public function update(Illuminate\Contracts\Auth\Authenticatable|Nvl\Support\Enu
 @param array{value: (string | null), expected_revision: int} $data
 ```
 
+## Nvl\Translations\Services\TranslationCatalogAdopter
+
+```text
+final readonly class Nvl\Translations\Services\TranslationCatalogAdopter
+public function __construct(Illuminate\Database\DatabaseManager $database, Nvl\Translations\Services\SourceTranslationWorkspace $workspace, Nvl\Translations\Services\TranslationProcessLock $lock, Nvl\Translations\Support\LegacyTranslationCatalogRows $rows): mixed
+public function apply(Illuminate\Contracts\Auth\Authenticatable|Nvl\Support\Enums\SystemActor $actor, string $fingerprint, array $source=[]): array
+@param array<array-key, mixed> $source
+@return Review
+resolved @return array{schema_fingerprint: string, fingerprint: string, entries: int, usages: int, staged_entries: int, staged_usages: int, conflicts: list<string>}
+public function plan(Illuminate\Contracts\Auth\Authenticatable|Nvl\Support\Enums\SystemActor $actor, array $source=[]): array
+@param array<array-key, mixed> $source
+@return Review
+resolved @return array{schema_fingerprint: string, fingerprint: string, entries: int, usages: int, staged_entries: int, staged_usages: int, conflicts: list<string>}
+public function verify(Illuminate\Contracts\Auth\Authenticatable|Nvl\Support\Enums\SystemActor $actor, string $fingerprint, array $source=[]): array
+@param array<array-key, mixed> $source
+@return Review
+resolved @return array{schema_fingerprint: string, fingerprint: string, entries: int, usages: int, staged_entries: int, staged_usages: int, conflicts: list<string>}
+```
+
 ## Nvl\Translations\Services\TranslationExporter
 
 ```text
 final class Nvl\Translations\Services\TranslationExporter
 public function __construct(Nvl\Translations\Services\TranslationScopeResolver $scopeResolver, Nvl\Translations\Services\TranslationImporter $importer, Nvl\Translations\Services\SourceTranslationWorkspace $workspace, Nvl\Translations\Services\TranslationProcessLock $lock, Nvl\Support\Events\DomainEventDispatcher $domainEvents, Nvl\Translations\Services\TranslationPathGuard $paths, Nvl\Translations\Services\TranslationArtifactWriter $artifactWriter): mixed
-public function export(Illuminate\Contracts\Auth\Authenticatable|Nvl\Support\Enums\SystemActor $actor, array $scopeTokens=[], ?array $locales=null, string $format="both", string $target="source", bool $prune=false, bool $dryRun=false): array
-@param list<string> $scopeTokens
+public function export(Illuminate\Contracts\Auth\Authenticatable|Nvl\Support\Enums\SystemActor $actor, array|Nvl\Translations\Support\TranslationSelection $scopeTokens=[], ?array $locales=null, string $format="both", string $target="source", bool $prune=false, bool $dryRun=false): array
+@param (list<string> | TranslationSelection) $scopeTokens
+resolved @param (list<string> | Nvl\Translations\Support\TranslationSelection) $scopeTokens
 @param (list<string> | null) $locales
 @return array{scopes: int, locales: int, files: int, deleted: int, target: string, paths: list<string>}
 ```
@@ -440,8 +462,9 @@ public function export(Illuminate\Contracts\Auth\Authenticatable|Nvl\Support\Enu
 ```text
 final class Nvl\Translations\Services\TranslationImporter
 public function __construct(Nvl\Translations\Services\TranslationScopeResolver $scopeResolver, Nvl\Translations\Services\SourceTranslationWorkspace $workspace, Nvl\Translations\Services\TranslationProcessLock $lock, Nvl\Support\Events\DomainEventDispatcher $domainEvents, Nvl\Translations\Services\TranslationPathGuard $paths): mixed
-public function import(Illuminate\Contracts\Auth\Authenticatable|Nvl\Support\Enums\SystemActor $actor, array $scopeTokens=[], string $format="both", bool $dryRun=false): array
-@param list<string> $scopeTokens
+public function import(Illuminate\Contracts\Auth\Authenticatable|Nvl\Support\Enums\SystemActor $actor, array|Nvl\Translations\Support\TranslationSelection $scopeTokens=[], string $format="both", bool $dryRun=false): array
+@param (list<string> | TranslationSelection) $scopeTokens
+resolved @param (list<string> | Nvl\Translations\Support\TranslationSelection) $scopeTokens
 @return array{scopes: int, files: int, entries: int, created: int, updated: int, preserved: int, conflicts: int, missing: int, warnings: list<string>}
 ```
 
@@ -456,4 +479,15 @@ public function scan(Illuminate\Contracts\Auth\Authenticatable|Nvl\Support\Enums
 @return array{files: int, hits: int, scanned_at: CarbonImmutable}
 resolved @return array{files: int, hits: int, scanned_at: Carbon\CarbonImmutable}
 public function validateConfiguration(): void
+```
+
+## Nvl\Translations\Support\TranslationSelection
+
+```text
+final readonly class Nvl\Translations\Support\TranslationSelection
+public function __construct(array $scopeTokens=[], string $format="both", array $groupPrefixes=[]): mixed
+@param list<string> $scopeTokens
+@param array<array-key, mixed> $groupPrefixes
+public readonly array $scopeTokens
+@param list<string> $scopeTokens
 ```

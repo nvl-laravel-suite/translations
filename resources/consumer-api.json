@@ -395,6 +395,18 @@
             "properties": [],
             "constants": []
         },
+        "Nvl\\Translations\\Services\\TranslationCatalogAdopter": {
+            "kind": "class",
+            "file": "src/Services/TranslationCatalogAdopter.php",
+            "methods": [
+                "__construct",
+                "apply",
+                "plan",
+                "verify"
+            ],
+            "properties": [],
+            "constants": []
+        },
         "Nvl\\Translations\\Services\\TranslationExporter": {
             "kind": "class",
             "file": "src/Services/TranslationExporter.php",
@@ -424,6 +436,17 @@
                 "validateConfiguration"
             ],
             "properties": [],
+            "constants": []
+        },
+        "Nvl\\Translations\\Support\\TranslationSelection": {
+            "kind": "class",
+            "file": "src/Support/TranslationSelection.php",
+            "methods": [
+                "__construct"
+            ],
+            "properties": [
+                "scopeTokens"
+            ],
             "constants": []
         }
     }

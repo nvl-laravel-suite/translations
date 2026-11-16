@@ -19,6 +19,7 @@ use Nvl\Translations\Exceptions\InvalidTranslationInputException;
 use Nvl\Translations\Exceptions\TranslationsException;
 use Nvl\Translations\Models\TranslationEntry;
 use Nvl\Translations\Support\TranslationScope;
+use Nvl\Translations\Support\TranslationSelection;
 use Nvl\Translations\Support\TranslationValueHash;
 
 /**
@@ -51,11 +52,11 @@ final class TranslationExporter
         private readonly TranslationArtifactWriter $artifactWriter,
     ) {}
 
-    /** @param list<string> $scopeTokens
+    /** @param list<string>|TranslationSelection $scopeTokens
      * @param  list<string>|null  $locales
      * @return array{scopes:int,locales:int,files:int,deleted:int,target:string,paths:list<string>}
      */
-    public function export(Authenticatable|SystemActor $actor, array $scopeTokens = [], ?array $locales = null, string $format = 'both', string $target = 'source', bool $prune = false, bool $dryRun = false): array
+    public function export(Authenticatable|SystemActor $actor, array|TranslationSelection $scopeTokens = [], ?array $locales = null, string $format = 'both', string $target = 'source', bool $prune = false, bool $dryRun = false): array
     {
         $this->workspace->authorize($actor, TranslationsAbility::Export);
         if ($prune) {
@@ -64,18 +65,19 @@ final class TranslationExporter
         if (! $dryRun && (new TranslationEntry)->getConnection()->transactionLevel() !== 0) {
             throw new TranslationsException('Translation export must start outside an existing catalog database transaction.');
         }
-        $result = $this->lock->execute('export', function () use ($actor, $scopeTokens, $locales, $format, $target, $prune, $dryRun): array {
+        $selection = TranslationSelection::resolve($scopeTokens, $format);
+        $result = $this->lock->execute('export', function () use ($actor, $selection, $locales, $target, $prune, $dryRun): array {
             $connection = (new TranslationEntry)->getConnection();
             if ($dryRun) {
                 $connection->beginTransaction();
             }
             try {
-                $import = $this->importer->synchronize($actor, $scopeTokens, $format);
+                $import = $this->importer->synchronize($actor, $selection);
                 if ($import['warnings'] !== []) {
                     throw new TranslationsException('Translation export stopped because the authoritative source read was incomplete: '.implode(' ', $import['warnings']));
                 }
 
-                return $this->write($scopeTokens, $locales, $format, $target, $prune, $dryRun);
+                return $this->write($selection, $locales, $target, $prune, $dryRun);
             } finally {
                 if ($dryRun) {
                     $connection->rollBack();
@@ -92,20 +94,17 @@ final class TranslationExporter
     /**
      * Export selected scopes and formats to a configured named destination.
      *
-     * @param  list<string>  $scopeTokens
      * @param  list<string>|null  $locales
      * @return array{scopes:int,locales:int,files:int,deleted:int,target:string,paths:list<string>}
      */
     private function write(
-        array $scopeTokens = [],
-        ?array $locales = null,
-        string $format = 'both',
-        string $target = 'source',
-        bool $prune = false,
-        bool $dryRun = false,
+        TranslationSelection $selection,
+        ?array $locales,
+        string $target,
+        bool $prune,
+        bool $dryRun,
     ): array {
-        [$includePhp, $includeJson] = $this->formats($format);
-        $scopes = $this->scopeResolver->resolveScopes($scopeTokens);
+        $scopes = $this->scopeResolver->resolveScopes($selection->scopeTokens);
         $targetRoots = $this->scopeResolver->resolveExportPaths($scopes, $target);
         $selectedLocales = $this->normalizeLocales($locales);
         $filesWritten = 0;
@@ -118,7 +117,7 @@ final class TranslationExporter
 
         foreach ($scopes as $scope) {
             $targetRoot = $targetRoots[$scope->token()];
-            $scopeLocales = $this->resolveLocalesForScope($scope, $selectedLocales);
+            $scopeLocales = $this->resolveLocalesForScope($scope, $selectedLocales, $selection);
 
             foreach ($scopeLocales as $locale) {
                 if ($scope->type === TranslationScopeType::App && strtolower($locale) === 'vendor') {
@@ -129,11 +128,12 @@ final class TranslationExporter
 
                 $localesTouched[$scope->token().'|'.$locale] = true;
 
-                if ($includePhp) {
+                if ($selection->includesFormat(TranslationFormat::Php)) {
                     $php = $this->exportPhpForScopeLocale(
                         $scope,
                         $targetRoot,
                         $locale,
+                        $selection,
                         $prune,
                         $synchronizeSource,
                     );
@@ -144,7 +144,7 @@ final class TranslationExporter
                     $rowsToSynchronize = $rowsToSynchronize->merge($php['rows']);
                 }
 
-                if ($includeJson) {
+                if ($selection->includesFormat(TranslationFormat::Json)) {
                     $json = $this->exportJsonForScopeLocale(
                         $scope,
                         $targetRoot,
@@ -185,17 +185,23 @@ final class TranslationExporter
      * @param  list<string>|null  $selectedLocales
      * @return list<string>
      */
-    private function resolveLocalesForScope(TranslationScope $scope, ?array $selectedLocales): array
+    private function resolveLocalesForScope(TranslationScope $scope, ?array $selectedLocales, TranslationSelection $selection): array
     {
         if ($selectedLocales !== null) {
             return $selectedLocales;
         }
 
-        $resolved = TranslationEntry::query()->useWritePdo()
+        $query = TranslationEntry::query()->useWritePdo()
             ->where('scope_type', $scope->type->value)
             ->where('scope_name', $scope->name)
             ->orderBy('locale')
-            ->pluck('locale')
+            ->distinct();
+        $locales = $selection->hasGroupPrefixes()
+            ? $query->where('format', TranslationFormat::Php->value)->get(['locale', 'group'])
+                ->filter(static fn (TranslationEntry $entry): bool => $selection->includesGroup($entry->group))->pluck('locale')
+            : $query->pluck('locale');
+
+        $resolved = $locales
             ->filter(static fn (mixed $value): bool => is_string($value) && $value !== '')
             ->map(fn (string $locale): string => $this->paths->locale($locale))
             ->uniqueStrict()
@@ -212,6 +218,7 @@ final class TranslationExporter
         TranslationScope $scope,
         string $targetRoot,
         string $locale,
+        TranslationSelection $selection,
         bool $prune,
         bool $synchronizeSource,
     ): array {
@@ -229,6 +236,10 @@ final class TranslationExporter
         $grouped = [];
 
         foreach ($rows as $row) {
+            if (! $selection->includesGroup($row->group)) {
+                continue;
+            }
+
             $group = $this->paths->group($row->group);
             $grouped[$group] ??= ['payload' => [], 'rows' => []];
             $this->undotSet($grouped[$group]['payload'], $row->key, $row->value);
@@ -255,7 +266,7 @@ final class TranslationExporter
         }
 
         $deletes = $prune
-            ? $this->prunePhpFiles($targetRoot, $locale, $expectedPaths)
+            ? $this->prunePhpFiles($targetRoot, $locale, $expectedPaths, $selection)
             : [];
 
         return [
@@ -347,6 +358,7 @@ final class TranslationExporter
         string $targetRoot,
         string $locale,
         array $expectedPaths,
+        TranslationSelection $selection,
     ): array {
         $localePath = $this->paths->child($targetRoot, $locale);
 
@@ -358,6 +370,10 @@ final class TranslationExporter
 
         foreach (File::allFiles($localePath) as $file) {
             if ($file->getExtension() !== TranslationFormat::Php->value) {
+                continue;
+            }
+            $group = substr($this->normalizedPath($file->getRelativePathname()), 0, -4);
+            if (! $selection->includesGroup($group)) {
                 continue;
             }
 
@@ -530,21 +546,6 @@ final class TranslationExporter
         );
 
         return array_values(array_unique($normalized));
-    }
-
-    /**
-     * @return array{bool,bool}
-     */
-    private function formats(string $format): array
-    {
-        return match ($format) {
-            TranslationFormat::Php->value => [true, false],
-            TranslationFormat::Json->value => [false, true],
-            'both' => [true, true],
-            default => throw new InvalidTranslationInputException(
-                "Invalid translation format [{$format}]. Expected php, json, or both.",
-            ),
-        };
     }
 
     private function normalizedPath(string $path): string

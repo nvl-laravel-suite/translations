@@ -17,6 +17,7 @@ use Nvl\Translations\Services\TranslationExporter;
 use Nvl\Translations\Services\TranslationImporter;
 use Nvl\Translations\Services\TranslationScanner;
 use Nvl\Translations\Services\TranslationScopeResolver;
+use Nvl\Translations\Support\TranslationSelection;
 
 beforeEach(function (): void {
     $this->catalogRoot = storage_path('framework/testing/nvl-translations-integrity-'.Str::uuid());
@@ -459,9 +460,8 @@ test('artifact plans reject case-insensitive destination collisions', function (
     }
 
     expect(fn () => (new ReflectionMethod(TranslationExporter::class, 'write'))->invoke(app(TranslationExporter::class),
-        ['app'],
+        new TranslationSelection(['app'], 'json'),
         null,
-        'json',
         'generated',
         false,
         true,
@@ -487,10 +487,11 @@ test('PHP export rejects scalar and nested dot-key shape collisions', function (
     }
 
     expect(fn () => (new ReflectionMethod(TranslationExporter::class, 'write'))->invoke(app(TranslationExporter::class),
-        ['app'],
+        new TranslationSelection(['app'], 'php'),
         ['en'],
-        'php',
         'generated',
+        false,
+        false,
     ))->toThrow(TranslationsException::class, 'conflicts with a scalar PHP key')
         ->and(File::exists($this->catalogTarget.'/en/messages.php'))->toBeFalse();
 });
@@ -517,10 +518,11 @@ test('PHP export rejects null leaf and nested dot-key shape collisions', functio
     }
 
     expect(fn () => (new ReflectionMethod(TranslationExporter::class, 'write'))->invoke(app(TranslationExporter::class),
-        ['app'],
+        new TranslationSelection(['app'], 'php'),
         ['en'],
-        'php',
         'generated',
+        false,
+        false,
     ))->toThrow(TranslationsException::class, 'conflicts with a scalar PHP key')
         ->and(File::exists($this->catalogTarget.'/en/messages.php'))->toBeFalse();
 });

@@ -10,9 +10,9 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Database\Query\Grammars\PostgresGrammar;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
+use Nvl\Support\Contracts\TextMatcher;
 use Nvl\Support\Enums\SystemActor;
 use Nvl\Support\Events\DomainEventDispatcher;
 use Nvl\Translations\Enums\TranslationsAbility;
@@ -21,7 +21,6 @@ use Nvl\Translations\Enums\TranslationSyncStatus;
 use Nvl\Translations\Events\TranslationEntryUpdated;
 use Nvl\Translations\Exceptions\InvalidTranslationInputException;
 use Nvl\Translations\Exceptions\StaleTranslationWorkspaceException;
-use Nvl\Translations\Exceptions\TranslationsException;
 use Nvl\Translations\Models\TranslationEntry;
 use Nvl\Translations\Models\TranslationScanRun;
 use Nvl\Translations\Models\TranslationUsage;
@@ -35,7 +34,7 @@ use Nvl\Translations\Support\TranslationValueHash;
  */
 final class TranslationCatalog
 {
-    public function __construct(private readonly SourceTranslationWorkspace $workspace, private readonly TranslationProcessLock $lock, private readonly DomainEventDispatcher $domainEvents, private readonly TranslationScopeResolver $scopeResolver) {}
+    public function __construct(private readonly SourceTranslationWorkspace $workspace, private readonly TranslationProcessLock $lock, private readonly DomainEventDispatcher $domainEvents, private readonly TranslationScopeResolver $scopeResolver, private readonly TextMatcher $textMatcher) {}
 
     /** @param array<string,mixed> $criteria
      * @return LengthAwarePaginator<int,TranslationEntry> */
@@ -446,12 +445,7 @@ final class TranslationCatalog
             if (! is_string($criteria['key_contains'])) {
                 throw new InvalidTranslationInputException('Key matching requires a string.');
             }
-            $column = $query->getQuery()->getGrammar()->wrap('key');
-            self::ensureSafeWrappedColumn($column);
-            $keyExpression = $query->getModel()->getConnection()->getDriverName() === 'pgsql'
-                ? "({$column} COLLATE pg_c_utf8) ILIKE ? ESCAPE '!'"
-                : "{$column} LIKE ? ESCAPE '!'";
-            $query->whereRaw($keyExpression, ['%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $criteria['key_contains']).'%']);
+            $this->textMatcher->contains($query->getQuery(), 'key', $criteria['key_contains']);
         }
         foreach (['search' => 'filterSearch', 'missing_value' => 'filterMissingValue', 'changed_since_import' => 'filterChangedSinceImport', 'is_missing' => 'filterIsMissing'] as $key => $method) {
             if (array_key_exists($key, $criteria)) {
@@ -488,38 +482,9 @@ final class TranslationCatalog
             return $query;
         }
 
-        $grammar = $query->getQuery()->getGrammar();
-        $isPostgres = $grammar instanceof PostgresGrammar;
-        $variants = $isPostgres
-            ? [$trimmed]
-            : array_values(array_unique([
-                $trimmed,
-                mb_strtolower($trimmed, 'UTF-8'),
-                mb_strtoupper($trimmed, 'UTF-8'),
-                mb_convert_case($trimmed, MB_CASE_TITLE, 'UTF-8'),
-            ]));
-        $needles = array_map(
-            static fn (string $variant): string => '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $variant).'%',
-            $variants,
-        );
-
-        return $query->where(static function (Builder $builder) use ($grammar, $isPostgres, $needles): void {
-            $first = true;
+        return $query->where(function (Builder $builder) use ($trimmed): void {
             foreach (['scope_type', 'scope_name', 'locale', 'format', 'group', 'key', 'value'] as $column) {
-                $wrapped = $grammar->wrap($column);
-                self::ensureSafeWrappedColumn($wrapped);
-                $expression = $isPostgres
-                    ? "(COALESCE({$wrapped}, '') COLLATE pg_c_utf8) ILIKE ? ESCAPE '!'"
-                    : "LOWER(COALESCE({$wrapped}, '')) LIKE LOWER(?) ESCAPE '!'";
-
-                foreach ($needles as $needle) {
-                    if ($first) {
-                        $builder->whereRaw($expression, [$needle]);
-                        $first = false;
-                    } else {
-                        $builder->orWhereRaw($expression, [$needle]);
-                    }
-                }
+                $this->textMatcher->contains($builder->getQuery(), $column, $trimmed, boolean: 'or');
             }
         });
     }
@@ -585,17 +550,5 @@ final class TranslationCatalog
         }
 
         return $query->where('is_missing', $enabled);
-    }
-
-    /**
-     * Prove that a database grammar returned only a quoted, allowlisted identifier.
-     *
-     * @phpstan-assert literal-string $column
-     */
-    private static function ensureSafeWrappedColumn(string $column): void
-    {
-        if (preg_match('/\\A(?:[`"]?[a-z_]+[`"]?|\\[[a-z_]+\\])\\z/', $column) !== 1) {
-            throw new TranslationsException('The database grammar returned an unsafe column identifier.');
-        }
     }
 }

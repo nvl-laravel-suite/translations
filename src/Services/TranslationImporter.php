@@ -16,13 +16,13 @@ use Nvl\Translations\Enums\TranslationsAbility;
 use Nvl\Translations\Enums\TranslationScopeType;
 use Nvl\Translations\Enums\TranslationSyncStatus;
 use Nvl\Translations\Events\TranslationsImported;
-use Nvl\Translations\Exceptions\InvalidTranslationInputException;
 use Nvl\Translations\Exceptions\TranslationConflictException;
 use Nvl\Translations\Exceptions\TranslationsException;
 use Nvl\Translations\Models\TranslationEntry;
 use Nvl\Translations\Support\TranslationConfiguration;
 use Nvl\Translations\Support\TranslationIdentity;
 use Nvl\Translations\Support\TranslationScope;
+use Nvl\Translations\Support\TranslationSelection;
 use Nvl\Translations\Support\TranslationValueHash;
 use ReflectionObject;
 use stdClass;
@@ -71,10 +71,10 @@ final class TranslationImporter
         private readonly TranslationPathGuard $paths,
     ) {}
 
-    /** @param list<string> $scopeTokens
+    /** @param list<string>|TranslationSelection $scopeTokens
      * @return array{scopes:int,files:int,entries:int,created:int,updated:int,preserved:int,conflicts:int,missing:int,warnings:list<string>}
      */
-    public function import(Authenticatable|SystemActor $actor, array $scopeTokens = [], string $format = 'both', bool $dryRun = false): array
+    public function import(Authenticatable|SystemActor $actor, array|TranslationSelection $scopeTokens = [], string $format = 'both', bool $dryRun = false): array
     {
         $result = $this->lock->execute('sync', fn (): array => $this->synchronize($actor, $scopeTokens, $format, $dryRun));
         if (! $dryRun) {
@@ -89,7 +89,7 @@ final class TranslationImporter
      *
      * @internal
      *
-     * @param  list<string>  $scopeTokens
+     * @param  list<string>|TranslationSelection  $scopeTokens
      * @return array{
      * scopes:int,
      * files:int,
@@ -104,13 +104,13 @@ final class TranslationImporter
      */
     public function synchronize(
         Authenticatable|SystemActor $actor,
-        array $scopeTokens = [],
+        array|TranslationSelection $scopeTokens = [],
         string $format = 'both',
         bool $dryRun = false,
     ): array {
         $this->workspace->authorize($actor, TranslationsAbility::Synchronize);
-        [$includePhp, $includeJson] = $this->formats($format);
-        $scopes = $this->scopeResolver->resolveScopes($scopeTokens);
+        $selection = TranslationSelection::resolve($scopeTokens, $format);
+        $scopes = $this->scopeResolver->resolveScopes($selection->scopeTokens);
         $summary = [
             'scopes' => count($scopes),
             'files' => 0,
@@ -131,7 +131,7 @@ final class TranslationImporter
                 continue;
             }
 
-            $parsed = $this->readScope($scope, $includePhp, $includeJson);
+            $parsed = $this->readScope($scope, $selection);
             $summary['files'] += $parsed['files'];
             $summary['entries'] += count($parsed['rows']);
             $summary['warnings'] = [...$summary['warnings'], ...$parsed['warnings']];
@@ -155,8 +155,7 @@ final class TranslationImporter
 
         (new TranslationEntry)->getConnection()->transaction(function () use (
             $parsedScopes,
-            $includePhp,
-            $includeJson,
+            $selection,
             $dryRun,
             &$summary,
         ): void {
@@ -168,8 +167,7 @@ final class TranslationImporter
                     $scope,
                     $parsed['rows'],
                     $parsed['warnings'] === [],
-                    $includePhp,
-                    $includeJson,
+                    $selection,
                     $dryRun,
                 );
 
@@ -189,16 +187,16 @@ final class TranslationImporter
      *     warnings:list<string>
      * }
      */
-    private function readScope(TranslationScope $scope, bool $includePhp, bool $includeJson): array
+    private function readScope(TranslationScope $scope, TranslationSelection $selection): array
     {
         $result = ['files' => 0, 'rows' => [], 'warnings' => []];
         $now = CarbonImmutable::now('UTC');
 
-        if ($includePhp) {
-            $this->readPhpFiles($scope, $now, $result);
+        if ($selection->includesFormat(TranslationFormat::Php)) {
+            $this->readPhpFiles($scope, $selection, $now, $result);
         }
 
-        if ($includeJson) {
+        if ($selection->includesFormat(TranslationFormat::Json)) {
             $this->readJsonFiles($scope, $now, $result);
         }
 
@@ -208,7 +206,7 @@ final class TranslationImporter
     /**
      * @param  ParsedScope  $result
      */
-    private function readPhpFiles(TranslationScope $scope, CarbonImmutable $now, array &$result): void
+    private function readPhpFiles(TranslationScope $scope, TranslationSelection $selection, CarbonImmutable $now, array &$result): void
     {
         foreach (File::directories($scope->path) as $localeDirectory) {
             if (! is_string($localeDirectory)) {
@@ -251,6 +249,9 @@ final class TranslationImporter
                     $normalizedLocaleDirectory.'/',
                 );
                 $group = Str::of($relativePath)->replaceEnd('.php', '')->trim('/')->value();
+                if (! $selection->includesGroup($group)) {
+                    continue;
+                }
 
                 try {
                     $group = $this->paths->group($group);
@@ -468,16 +469,14 @@ final class TranslationImporter
         TranslationScope $scope,
         array $rows,
         bool $completeRead,
-        bool $includePhp,
-        bool $includeJson,
+        TranslationSelection $selection,
         bool $dryRun,
     ): array {
         return (new TranslationEntry)->getConnection()->transaction(function () use (
             $scope,
             $rows,
             $completeRead,
-            $includePhp,
-            $includeJson,
+            $selection,
             $dryRun,
         ): array {
             $existingRows = TranslationEntry::query()
@@ -593,18 +592,10 @@ final class TranslationImporter
             }
 
             if ($completeRead) {
-                $formats = [];
-                if ($includePhp) {
-                    $formats[] = TranslationFormat::Php->value;
-                }
-                if ($includeJson) {
-                    $formats[] = TranslationFormat::Json->value;
-                }
-
                 $seenIdentities = array_fill_keys(array_keys($rows), true);
 
                 foreach ($existingRows as $entry) {
-                    if (! in_array($entry->format, $formats, true)) {
+                    if (! $selection->includes($entry->format, $entry->group)) {
                         continue;
                     }
 
@@ -706,20 +697,5 @@ final class TranslationImporter
     private function entryIdentity(TranslationEntry $entry): string
     {
         return $entry->identity_hash;
-    }
-
-    /**
-     * @return array{bool,bool}
-     */
-    private function formats(string $format): array
-    {
-        return match ($format) {
-            TranslationFormat::Php->value => [true, false],
-            TranslationFormat::Json->value => [false, true],
-            'both' => [true, true],
-            default => throw new InvalidTranslationInputException(
-                "Invalid translation format [{$format}]. Expected php, json, or both.",
-            ),
-        };
     }
 }

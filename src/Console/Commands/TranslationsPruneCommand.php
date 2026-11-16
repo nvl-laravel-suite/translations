@@ -7,6 +7,7 @@ namespace Nvl\Translations\Console\Commands;
 use Illuminate\Console\Command;
 use Nvl\Support\Enums\SystemActor;
 use Nvl\Translations\Services\TranslationExporter;
+use Nvl\Translations\Support\TranslationSelection;
 
 /**
  * Removes stale translation artifacts only after an explicit force flag.
@@ -17,6 +18,7 @@ final class TranslationsPruneCommand extends Command
         {--scope=* : Scope tokens}
         {--locales= : Comma-separated locales}
         {--format=both : php|json|both}
+        {--group-prefix=* : PHP group paths including their descendants}
         {--target=source : Configured export target}
         {--dry-run : Report stale artifacts without deleting}
         {--force : Confirm destructive pruning}';
@@ -56,13 +58,14 @@ final class TranslationsPruneCommand extends Command
             return self::FAILURE;
         }
 
-        $result = $action->export(SystemActor::Background,
-            $scopes,
-            $locales === [] ? null : $locales,
-            $format,
-            $target,
-            true,
-            $dryRun,
+        $selection = new TranslationSelection($scopes, $format, (array) $this->option('group-prefix'));
+        $result = $action->export(
+            SystemActor::Background,
+            $selection,
+            locales: $locales === [] ? null : $locales,
+            target: $target,
+            prune: true,
+            dryRun: $dryRun,
         );
 
         $this->info(sprintf(

@@ -85,6 +85,16 @@ The conventions discovered automatically are:
 
 Module and vendor discovery are disabled by default. Mail files remain ordinary application PHP groups (`mail` or `mail/*`), not a second overlapping storage scope.
 
+Use `new Nvl\Translations\Support\TranslationSelection(['app'], 'php', ['mail'])` as the scope argument of `TranslationImporter::import()` or `TranslationExporter::export()`. On the CLI, pass `--scope=app --format=php --group-prefix=mail` to `sync`, `export`, or `prune`. Prefixes are case-sensitive whole groups and include their slash-delimited descendants. Preflight import, missing-entry reconciliation, export and pruning use the same selection.
+
+### Adopt a legacy file catalog
+
+Run the package migrations against empty staging storage first. Use a separate PostgreSQL schema or database connection if legacy and native index names overlap. Keep the legacy catalog quiescent and its integration active during staging.
+
+Call `Nvl\Translations\Services\TranslationCatalogAdopter::plan($actor, $source)` to inspect `translation_entries` and `translation_usages`. The optional source map accepts `connection`, `entries_table`, `usages_table`, and `source_values`. Supply original nullable source values by entry UUID when legacy source hashes disagree with the current catalog values. Resolve reported duplicate identities in the reviewed source before proceeding. JSON null groups become `*` and the legacy `mail` scope maps to `app`.
+
+Pass the reviewed `fingerprint` and the same source map to `apply($actor, $fingerprint, $source)`. If interrupted, retry with the same fingerprint to reconcile and reuse exact committed rows. Call `verify($actor, $fingerprint, $source)` before switching the host integration to the staged catalog. Start a native scan to establish a latest-scan marker for unused reports.
+
 Add explicit module roots before enabling module discovery:
 
 ```php

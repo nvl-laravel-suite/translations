@@ -7,6 +7,7 @@ namespace Nvl\Translations\Console\Commands;
 use Illuminate\Console\Command;
 use Nvl\Support\Enums\SystemActor;
 use Nvl\Translations\Services\TranslationImporter;
+use Nvl\Translations\Support\TranslationSelection;
 
 /**
  * Import translation files into translation_entries.
@@ -19,6 +20,7 @@ final class TranslationsImportCommand extends Command
     protected $signature = 'nvl:translations:sync
         {--scope=* : Scope tokens (app,module:name,vendor:package,custom:name)}
         {--format=both : php|json|both}
+        {--group-prefix=* : PHP group paths including their descendants}
         {--strategy= : fail|prefer-file|prefer-database|interactive}
         {--dry-run : Report the database synchronization plan without writing}
         {--output=text : Output format: text or json}';
@@ -80,7 +82,8 @@ final class TranslationsImportCommand extends Command
             if (isset($normalizedStrategy)) {
                 config()->set('nvl-translations.import.conflict_strategy', $normalizedStrategy);
             }
-            $result = $action->import(SystemActor::Background, $scopes, $format, $dryRun);
+            $selection = new TranslationSelection($scopes, $format, (array) $this->option('group-prefix'));
+            $result = $action->import(SystemActor::Background, $selection, dryRun: $dryRun);
         } finally {
             config()->set('nvl-translations.import.conflict_strategy', $originalStrategy);
         }
