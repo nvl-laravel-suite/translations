@@ -5,6 +5,14 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- Adoption runs through nvl:adopt with reviewed, checkpointed batches and an explicit activate step. Committed batches survive a failure. Keep writers stopped until verify and activate pass. The `translations` adapter stages entries, then usages, holds the workspace process lock for each batch and keeps the reviewed `source_values` baselines; `TranslationCatalogAdopter` keeps its existing behaviour.
+
+### Fixed
+
+- Search supports host text matchers that return a new builder.
+
 ## [7.1.0] - 2026-11-16
 
 ### Highlights

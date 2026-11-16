@@ -95,6 +95,8 @@ Call `Nvl\Translations\Services\TranslationCatalogAdopter::plan($actor, $source)
 
 Pass the reviewed `fingerprint` and the same source map to `apply($actor, $fingerprint, $source)`. If interrupted, retry with the same fingerprint to reconcile and reuse exact committed rows. Call `verify($actor, $fingerprint, $source)` before switching the host integration to the staged catalog. Start a native scan to establish a latest-scan marker for unused reports.
 
+For large catalogs, run `php artisan nvl:adopt translations plan|apply|verify|activate <manifest.json>` with the same source map as JSON. It needs the Core adoption tables (`nvl-core.adoption.migrations.enabled`). Entries are staged before usages in committed batches under the workspace process lock; a failed `apply` resumes with `--run`, and a staged row that drifts from its reviewed baseline blocks the resume. Keep the legacy catalog quiescent until verify and activate pass.
+
 Add explicit module roots before enabling module discovery:
 
 ```php

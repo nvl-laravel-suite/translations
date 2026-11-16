@@ -6,6 +6,7 @@ namespace Nvl\Translations\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Nvl\Ownership\Services\OwnershipAdoptionRegistry;
+use Nvl\Support\Adoption\AdoptionRegistry;
 use Nvl\Support\Doctor\PackageDoctorContributor;
 use Nvl\Support\Globals\GlobalNames;
 use Nvl\Support\Ownership\Contracts\OwnershipIntegratedProvider;
@@ -13,6 +14,7 @@ use Nvl\Support\Ownership\Services\OwnershipResourceRegistry;
 use Nvl\Support\Providers\SupportServiceProvider;
 use Nvl\Support\Traits\MergesPackageConfiguration;
 use Nvl\Support\Traits\RegistersNamespacedResources;
+use Nvl\Translations\Adoption\TranslationCatalogAdoptionAdapter;
 use Nvl\Translations\Console\Commands\TranslationsDoctorCommand;
 use Nvl\Translations\Console\Commands\TranslationsExportCommand;
 use Nvl\Translations\Console\Commands\TranslationsImportCommand;
@@ -46,6 +48,7 @@ final class TranslationsServiceProvider extends ServiceProvider implements Owner
         if ($this->app->runningInConsole()) {
             $this->registerCommands();
         }
+        $this->app->make(AdoptionRegistry::class)->register('translations', TranslationCatalogAdoptionAdapter::class);
 
         $this->publishes([
             __DIR__.'/../../resources/boost/skills' => base_path('.agents/skills'),

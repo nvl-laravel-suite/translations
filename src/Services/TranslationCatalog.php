@@ -445,7 +445,7 @@ final class TranslationCatalog
             if (! is_string($criteria['key_contains'])) {
                 throw new InvalidTranslationInputException('Key matching requires a string.');
             }
-            $this->textMatcher->contains($query->getQuery(), 'key', $criteria['key_contains']);
+            $query->setQuery($this->textMatcher->contains($query->getQuery(), 'key', $criteria['key_contains']));
         }
         foreach (['search' => 'filterSearch', 'missing_value' => 'filterMissingValue', 'changed_since_import' => 'filterChangedSinceImport', 'is_missing' => 'filterIsMissing'] as $key => $method) {
             if (array_key_exists($key, $criteria)) {
@@ -484,7 +484,7 @@ final class TranslationCatalog
 
         return $query->where(function (Builder $builder) use ($trimmed): void {
             foreach (['scope_type', 'scope_name', 'locale', 'format', 'group', 'key', 'value'] as $column) {
-                $this->textMatcher->contains($builder->getQuery(), $column, $trimmed, boolean: 'or');
+                $builder->setQuery($this->textMatcher->contains($builder->getQuery(), $column, $trimmed, boolean: 'or'));
             }
         });
     }

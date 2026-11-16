@@ -14,6 +14,8 @@ Owner copy continues through `TranslationOverrideRepository` inside native Owner
 
 `TranslationEntryUpdated::entry` is now a detached array snapshot. Drain old queued payloads and restart workers when updating listeners. Events publish after the actual source connection commits; filesystem completion and SQL transaction completion remain separate facts.
 
+Adoption runs through nvl:adopt with reviewed, checkpointed batches and an explicit activate step. Committed batches survive a failure. Keep writers stopped until verify and activate pass. Run `php artisan nvl:adopt translations plan|apply|verify|activate <manifest.json>` with the options `TranslationCatalogAdopter` takes (`connection`, `entries_table`, `usages_table`, `source_values`); entries are staged before usages, and a staged row that drifts from its reviewed baseline blocks resume. `TranslationCatalogAdopter::plan()`, `apply()` and `verify()` remain available unchanged.
+
 See [README](README.md) for native signatures and retained source, scan, backup and lock configuration.
 
 ## Next major: isolated schema identities

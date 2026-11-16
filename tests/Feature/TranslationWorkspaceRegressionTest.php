@@ -3,16 +3,26 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Events\TransactionCommitting;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Nvl\Support\Adoption\AdoptionCoordinator;
+use Nvl\Support\Adoption\AdoptionException;
+use Nvl\Support\Adoption\AdoptionProgress;
+use Nvl\Support\Adoption\AdoptionRegistry;
+use Nvl\Support\Adoption\AdoptionStore;
+use Nvl\Support\Contracts\TextMatcher;
 use Nvl\Support\Enums\SystemActor;
 use Nvl\Translations\Definitions\Tables\TranslationsTables;
 use Nvl\Translations\Enums\TranslationSyncStatus;
 use Nvl\Translations\Exceptions\InvalidTranslationInputException;
 use Nvl\Translations\Exceptions\TranslationsException;
+use Nvl\Translations\Exceptions\TranslationWorkspaceLockedException;
 use Nvl\Translations\Models\TranslationEntry;
 use Nvl\Translations\Models\TranslationUsage;
 use Nvl\Translations\Services\TranslationCatalog;
@@ -24,6 +34,7 @@ use Nvl\Translations\Services\TranslationScanner;
 use Nvl\Translations\Services\TranslationsDoctor;
 use Nvl\Translations\Support\TranslationSelection;
 use Nvl\Translations\Support\TranslationValueHash;
+use Nvl\Translations\Tests\Fixtures\CloningTextMatcher;
 
 beforeEach(function (): void {
     $this->regressionRoot = storage_path('framework/testing/nvl-translations-regression-'.Str::uuid());
@@ -160,6 +171,143 @@ test('reports conflicting normalized legacy identities and rejects incompatible 
     expect(fn () => $adopter->plan($actor, $source))->toThrow(InvalidTranslationInputException::class, 'last_seen_at');
 });
 
+/**
+ * Seed three legacy entries, one with a reviewed baseline, and two usages; return the adoption options.
+ *
+ * @return array{entries_table: string, usages_table: string, source_values: array<string, string>, ids: list<string>}
+ */
+function seedLegacyCatalogForAdoption(): array
+{
+    test()->artisan('migrate', ['--path' => dirname((string) (new ReflectionClass(AdoptionStore::class))->getFileName(), 3).'/database/migrations', '--realpath' => true])->assertSuccessful();
+    $source = createLegacyTranslationCatalog();
+    $ids = ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000003'];
+    $timestamp = '2026-02-05 10:30:00+00:00';
+    DB::table($source['entries_table'])->insert([
+        ['id' => $ids[0], 'scope_type' => 'app', 'scope_name' => 'app', 'locale' => 'en', 'format' => 'json', 'group' => null, 'key' => 'Save', 'value' => 'Save', 'source_hash' => hash('sha256', 'Save'), 'created_at' => $timestamp, 'updated_at' => $timestamp],
+        ['id' => $ids[1], 'scope_type' => 'app', 'scope_name' => 'app', 'locale' => 'en', 'format' => 'php', 'group' => 'mail', 'key' => 'title', 'value' => 'Edited', 'source_hash' => hash('sha256', 'Original'), 'created_at' => $timestamp, 'updated_at' => $timestamp],
+        ['id' => $ids[2], 'scope_type' => 'app', 'scope_name' => 'app', 'locale' => 'de', 'format' => 'json', 'group' => null, 'key' => 'Save', 'value' => 'Speichern', 'source_hash' => null, 'created_at' => $timestamp, 'updated_at' => $timestamp],
+    ]);
+    DB::table($source['usages_table'])->insert([
+        ['id' => '00000000-0000-4000-8000-000000000011', 'scope_type' => 'app', 'scope_name' => 'app', 'format' => 'json', 'full_key' => 'Save', 'file_path' => 'app/main.php', 'line' => 12, 'last_seen_at' => $timestamp, 'created_at' => $timestamp],
+        ['id' => '00000000-0000-4000-8000-000000000012', 'scope_type' => 'app', 'scope_name' => 'app', 'format' => 'php', 'full_key' => 'mail.title', 'file_path' => 'app/mail.php', 'line' => 3, 'last_seen_at' => $timestamp, 'created_at' => $timestamp],
+    ]);
+
+    return [...$source, 'source_values' => [$ids[1] => 'Original'], 'ids' => $ids];
+}
+
+/** @param array<string, mixed> $options */
+function translationAdoption(array $options): AdoptionCoordinator
+{
+    return new AdoptionCoordinator(app(AdoptionRegistry::class)->make('translations', SystemActor::Background, $options));
+}
+
+/**
+ * Fail the given 1-based insert into the table once and record the order of staged tables.
+ *
+ * @param  list<string>  $inserted
+ */
+function interruptTranslationInsert(string $table, int $failOn, array &$inserted): void
+{
+    $count = 0;
+    DB::connection()->beforeExecuting(static function (string $sql) use ($table, $failOn, &$count, &$inserted): void {
+        foreach ([TranslationsTables::get(TranslationsTables::Entries), TranslationsTables::get(TranslationsTables::Usages)] as $target) {
+            if (str_starts_with($sql, 'insert into "'.$target.'"')) {
+                $inserted[] = $target;
+                if ($target === $table && ++$count === $failOn) {
+                    throw new RuntimeException('Interrupted adoption batch');
+                }
+            }
+        }
+    });
+}
+
+test('nvl:adopt stages entries before usages and resumes after an interrupted usage batch', function (): void {
+    $source = seedLegacyCatalogForAdoption();
+    $options = Arr::except($source, 'ids');
+    $plan = translationAdoption($options)->plan();
+    expect(array_map(static fn ($step): string => $step->id, $plan->steps))->toBe(['entries', 'usages'])
+        ->and($plan->expected)->toBe(['entries' => 3, 'usages' => 2])
+        ->and($plan->collisions)->toBe([])
+        ->and(TranslationEntry::count())->toBe(0)
+        ->and(DB::table(AdoptionStore::Runs)->count())->toBe(0);
+
+    app(TranslationProcessLock::class)->execute('test', static function () use ($options, $plan): void {
+        expect(fn () => translationAdoption($options)->apply($plan->fingerprint, 2))->toThrow(TranslationWorkspaceLockedException::class)
+            ->and(TranslationEntry::count())->toBe(0);
+    });
+    $runId = (string) DB::table(AdoptionStore::Runs)->value('id');
+
+    $inserted = [];
+    interruptTranslationInsert(TranslationsTables::get(TranslationsTables::Usages), 1, $inserted);
+    expect(fn () => translationAdoption($options)->apply($plan->fingerprint, 2, $runId))->toThrow(RuntimeException::class, 'Interrupted adoption batch')
+        ->and(array_values(array_unique($inserted)))->toBe([TranslationsTables::get(TranslationsTables::Entries), TranslationsTables::get(TranslationsTables::Usages)])
+        ->and(TranslationEntry::count())->toBe(3)
+        ->and(TranslationUsage::count())->toBe(0)
+        ->and(DB::table(AdoptionStore::Runs)->value('status'))->toBe(AdoptionProgress::Failed)
+        ->and(DB::table(AdoptionStore::Checkpoints)->pluck('step')->all())->toBe(['entries']);
+
+    $progress = translationAdoption($options)->apply($plan->fingerprint, 2, $runId);
+    expect($progress->state)->toBe(AdoptionProgress::Applied)
+        ->and($progress->steps['entries'])->toMatchArray(['processed' => 3, 'complete' => true])
+        ->and($progress->steps['usages'])->toMatchArray(['processed' => 2, 'complete' => true])
+        ->and(TranslationEntry::count())->toBe(3)
+        ->and(TranslationUsage::count())->toBe(2)
+        ->and(TranslationEntry::findOrFail($source['ids'][1]))->source_hash->toBe(TranslationValueHash::make('Original'))->sync_status->toBe(TranslationSyncStatus::Edited);
+
+    expect(translationAdoption($options)->verify()->passed)->toBeTrue()
+        ->and(translationAdoption($options)->activate($plan->fingerprint)->state)->toBe(AdoptionProgress::Active)
+        ->and(app(TranslationCatalogAdopter::class)->verify(SystemActor::Background, app(TranslationCatalogAdopter::class)->plan(SystemActor::Background, $options)['fingerprint'], $options))
+        ->toMatchArray(['staged_entries' => 3, 'staged_usages' => 2, 'conflicts' => []]);
+});
+
+test('nvl:adopt releases the workspace lock when a batch commit fails', function (): void {
+    $options = Arr::except(seedLegacyCatalogForAdoption(), 'ids');
+    $fingerprint = translationAdoption($options)->plan()->fingerprint;
+    $failCommit = true;
+    Event::listen(TransactionCommitting::class, static function (TransactionCommitting $event) use (&$failCommit): void {
+        if ($failCommit) {
+            $failCommit = false;
+            $event->connection->getPdo()->rollBack();
+
+            throw new RuntimeException('Injected commit failure');
+        }
+    });
+
+    expect(fn () => translationAdoption($options)->apply($fingerprint, 2))->toThrow(RuntimeException::class, 'Injected commit failure')
+        ->and($failCommit)->toBeFalse()
+        ->and(TranslationEntry::count())->toBe(0)
+        ->and(app(TranslationProcessLock::class)->execute('after failed commit', static fn (): string => 'released'))->toBe('released');
+});
+
+test('nvl:adopt refuses to resume when a reviewed baseline drifted behind the cursor', function (): void {
+    $source = seedLegacyCatalogForAdoption();
+    $options = Arr::except($source, 'ids');
+    $fingerprint = translationAdoption($options)->plan()->fingerprint;
+
+    $inserted = [];
+    interruptTranslationInsert(TranslationsTables::get(TranslationsTables::Entries), 2, $inserted);
+    expect(fn () => translationAdoption($options)->apply($fingerprint, 2))->toThrow(RuntimeException::class, 'Interrupted adoption batch')
+        ->and(TranslationEntry::query()->orderBy('id')->pluck('id')->all())->toBe([$source['ids'][0], $source['ids'][1]]);
+    $runId = (string) DB::table(AdoptionStore::Runs)->value('id');
+
+    DB::table(TranslationsTables::get(TranslationsTables::Entries))->where('id', $source['ids'][1])
+        ->update(['source_hash' => TranslationValueHash::make('Edited')]);
+    expect(translationAdoption($options)->plan()->collisions)->toHaveCount(1)
+        ->and(fn () => translationAdoption($options)->apply($fingerprint, 2, $runId))->toThrow(AdoptionException::class, 'drift behind the cursor')
+        ->and(TranslationEntry::count())->toBe(2);
+
+    DB::table(TranslationsTables::get(TranslationsTables::Entries))->where('id', $source['ids'][1])
+        ->update(['source_hash' => TranslationValueHash::make('Original')]);
+    DB::table($source['entries_table'])->where('id', $source['ids'][1])->update(['source_hash' => hash('sha256', 'Revised')]);
+    $revised = [...$options, 'source_values' => [$source['ids'][1] => 'Revised']];
+    $replanned = translationAdoption($revised)->plan();
+    expect($replanned->fingerprint)->not->toBe($fingerprint)
+        ->and(fn () => translationAdoption($revised)->apply($fingerprint, 2, $runId))->toThrow(AdoptionException::class, 'changed since review')
+        ->and(fn () => translationAdoption($revised)->apply($replanned->fingerprint, 2, $runId))->toThrow(AdoptionException::class, 'different fingerprint')
+        ->and(TranslationEntry::count())->toBe(2)
+        ->and(TranslationUsage::count())->toBe(0);
+});
+
 test('imports read the current PHP catalog instead of a compiled copy cached before an export', function (): void {
     $path = $this->regressionSource.'/en/messages.php';
     File::ensureDirectoryExists(dirname($path));
@@ -209,6 +357,19 @@ test('catalog text searches fold Cyrillic and match literal wildcard characters'
     expect($catalog->paginate(SystemActor::Background, ['key_contains' => 'привет !%_'])->items())->toHaveCount(1)
         ->and($catalog->paginate(SystemActor::Background, ['search' => 'пЕрВыЙ !%_'])->items())->toHaveCount(1)
         ->and($catalog->paginate(SystemActor::Background, ['search' => 'пЕрВыЙ !%_'])->first()?->key)->toBe('ПРИВЕТ !%_');
+});
+
+test('catalog key and text searches keep their filters when a host matcher returns a cloned builder', function (): void {
+    File::put($this->regressionSource.'/en.json', '{"Save Changes":"Store changes","Discard":"Unsaved draft","Cancel":"Cancel"}');
+    File::put($this->regressionSource.'/bg.json', '{"Save Changes":"Запази","Discard":"Отказ","Cancel":"Отмени"}');
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
+    app()->bind(TextMatcher::class, CloningTextMatcher::class);
+    $catalog = app(TranslationCatalog::class);
+    $keys = static fn (array $criteria): array => $catalog->paginate(SystemActor::Background, [...$criteria, 'locale' => 'en', 'sort' => ['key']])->pluck('key')->all();
+
+    expect($keys(['key_contains' => 'SAVE']))->toBe(['Save Changes'])
+        ->and($keys(['search' => 'SAVE']))->toBe(['Discard', 'Save Changes'])
+        ->and($catalog->paginate(SystemActor::Background, ['key_contains' => 'SAVE'])->pluck('locale')->sort()->values()->all())->toBe(['bg', 'en']);
 });
 
 test('group selection limits preflight, exports, missing rows and stale-file pruning to exact group paths', function (): void {
