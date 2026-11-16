@@ -5,6 +5,8 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+## [7.3.0] - 2026-11-17
+
 ### Fixed
 
 - `nvl:adopt translations` verify and activate take the workspace process lock before the run row, the order apply uses, through Core's `AdoptionAdapter::aroundVerification()` hook; they no longer wait on the lock while holding the run row.
@@ -17,6 +19,12 @@ All notable changes to `nvl/translations` are documented here.
 ### Changed
 
 - Requires `nvl/core` 7.3.0 for the adoption verification hook and checkpoint confirmation.
+
+<!-- NVL GENERATED CHANGES START -->
+### Changed
+
+- implement the Final spec audit for one release
+<!-- NVL GENERATED CHANGES END -->
 
 ## [7.2.0] - 2026-11-16
 
