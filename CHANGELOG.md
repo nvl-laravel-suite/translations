@@ -5,6 +5,20 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+## [7.1.0] - 2026-11-16
+
+### Highlights
+
+- Adopt a legacy file catalog and select translation imports and exports by scope, format, and group prefix.
+
+<!-- NVL GENERATED CHANGES START -->
+### Changed
+
+- close NVL consumer adoption and portability gaps
+- require Core 7.1 for packages using the text matcher
+- Merge pull request #21 from nicolasvlachos/codex/consumer-postgresql-validation
+<!-- NVL GENERATED CHANGES END -->
+
 ## [7.0.4] - 2026-11-13
 
 ### Fixed
