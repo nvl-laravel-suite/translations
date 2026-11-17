@@ -23,6 +23,8 @@ Adoption runs through nvl:adopt with reviewed, checkpointed batches and an expli
 - Replace symbolic links below language, scan and export roots with real directories; import, scan and export now reject them.
 - Rescan after upgrading: keys with surrounding whitespace or a literal `$` are now recorded exactly, so unused reports for them change.
 - A model observer that vetoes a `TranslationEntry` or `TranslationScanRun` save now makes the operation throw `TranslationsException` instead of reporting success.
+- Translation keys and values containing a NUL byte are now rejected on import (a warning, or a stopped import with `import.fail_on_error`), catalog edit and override write. Remove NUL bytes from language files before syncing.
+- Rescan after upgrading: the default `scan.patterns` now also record JavaScript template-literal keys without `${` and PHP `key:` named arguments, so unused reports shrink. Hosts that publish their own `scan.patterns` keep their patterns; copy the new defaults from the package config to gain these forms.
 
 See [README](README.md) for native signatures and retained source, scan, backup and lock configuration.
 

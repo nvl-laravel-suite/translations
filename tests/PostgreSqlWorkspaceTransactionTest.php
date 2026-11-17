@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 use Nvl\Support\Enums\SystemActor;
 use Nvl\Translations\Exceptions\TranslationWorkspaceLockedException;
@@ -67,6 +68,39 @@ it('holds the workspace lease until the outer transaction commits', function ():
     $lease = Cache::store('translations_race')->lock('nvl:translations:workspace', 5);
     expect($lease->get())->toBeTrue();
     $lease->release();
+});
+
+it('keeps the workspace lease after the nested transaction that took it commits', function (): void {
+    $entry = TranslationEntry::query()->sole();
+    $catalog = app(TranslationCatalog::class);
+    $directory = TranslationLockWorkers::directory();
+    $leaseKey = $this->redis['prefix'].'nvl:translations:workspace';
+    $worker = null;
+    DB::beginTransaction();
+    try {
+        DB::beginTransaction();
+        $edited = $catalog->update(SystemActor::Background, $entry->id, ['value' => 'Nested', 'expected_revision' => $entry->revision]);
+        DB::commit();
+        $lease = Redis::connection('translations_race')->get($leaseKey);
+
+        // The worker retries the workspace lock while the parent edits the row the committed savepoint still locks.
+        $worker = TranslationLockWorkers::start($directory, $this->redis, ['operation' => 'update', 'entry' => $entry->id, 'revision' => $edited->revision + 1, 'wait_seconds' => 30]);
+        TranslationLockWorkers::awaitWorkspaceLockWait($worker, $directory);
+        $catalog->update(SystemActor::Background, $entry->id, ['value' => 'Parent', 'expected_revision' => $edited->revision]);
+        $leaseAfterParentEdit = Redis::connection('translations_race')->get($leaseKey);
+        DB::commit();
+
+        expect($lease)->toBeString()
+            ->and($leaseAfterParentEdit)->toBe($lease, 'The parent edit released the workspace lease while the committed savepoint\'s row locks were held.')
+            ->and(TranslationLockWorkers::outcome($worker))->toBe(['status' => 'completed', 'result' => 'Worker'])
+            ->and($entry->fresh()?->value)->toBe('Worker');
+    } finally {
+        if (DB::transactionLevel() > 0) {
+            DB::rollBack(0);
+        }
+        $worker?->stop();
+        TranslationLockWorkers::removeDirectory($directory);
+    }
 });
 
 it('releases the workspace lease when the outer transaction rolls back after an edit', function (): void {

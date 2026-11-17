@@ -227,7 +227,7 @@ final class TranslationScanner
             $line += substr_count($contents, "\n", $lastOffset, max(0, $offset - $lastOffset));
             $lastOffset = $offset;
 
-            if (! mb_check_encoding($rawKey, 'UTF-8')) {
+            if (! mb_check_encoding($rawKey, 'UTF-8') || str_contains($rawKey, "\0")) {
                 continue;
             }
 

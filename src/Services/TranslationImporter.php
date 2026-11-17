@@ -342,6 +342,12 @@ final class TranslationImporter
                     continue;
                 }
 
+                if (str_contains($key, "\0")) {
+                    $result['warnings'][] = "Skipping NUL-containing translation key in [{$jsonPath}].";
+
+                    continue;
+                }
+
                 $normalized = $this->normalizeValue(
                     $value,
                     $jsonPath,
@@ -437,6 +443,12 @@ final class TranslationImporter
 
             if (! mb_check_encoding($keySegment, 'UTF-8')) {
                 $warnings[] = "Skipping invalid UTF-8 translation key in [{$path}].";
+
+                continue;
+            }
+
+            if (str_contains($keySegment, "\0")) {
+                $warnings[] = "Skipping NUL-containing translation key in [{$path}].";
 
                 continue;
             }
@@ -628,6 +640,12 @@ final class TranslationImporter
         if ($value === null || is_string($value)) {
             if (is_string($value) && ! mb_check_encoding($value, 'UTF-8')) {
                 $warnings[] = "Skipping invalid UTF-8 translation [{$key}] in [{$path}].";
+
+                return false;
+            }
+
+            if (is_string($value) && str_contains($value, "\0")) {
+                $warnings[] = "Skipping NUL-containing translation [{$key}] in [{$path}].";
 
                 return false;
             }

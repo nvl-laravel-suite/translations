@@ -34,6 +34,8 @@ TranslationLockWorkerProvider::$configuration = [
     "database.connections.{$connection}" => $source,
     'nvl-translations.lock.wait_seconds' => (int) ($options['wait_seconds'] ?? 0),
     ...TranslationLockWorkers::lockConfiguration($options['redis']),
+    // Name the lock store's Redis client so the parent can see this worker attempt the workspace lock.
+    'database.redis.translations_race.name' => TranslationLockWorkers::clientName($options['directory']),
 ];
 $app = Application::create(options: ['load_environment_variables' => false, 'extra' => [
     'dont-discover' => ['*'],

@@ -62,8 +62,8 @@ afterEach(function (): void {
 });
 
 /**
- * Hold the workspace lock while a worker runs one adoption phase with a lock wait; return whether any probe found the
- * run row locked while the worker waited, and the worker's outcome after the lock is released.
+ * Hold the workspace lock while a worker runs one adoption phase with a lock wait; once the worker is retrying the
+ * workspace lock, return whether it holds the run row, and the worker's outcome after the lock is released.
  *
  * @param  array<string, mixed>  $operation
  * @return array{run_locked: bool, outcome: array<string, mixed>}
@@ -75,22 +75,18 @@ function adoptionPhaseWhileWorkspaceLocked(array $redis, array $operation): arra
     expect($workspace->get())->toBeTrue();
     $worker = null;
     try {
-        $worker = TranslationLockWorkers::start($directory, $redis, [...$operation, 'wait_seconds' => 20]);
-        TranslationLockWorkers::await($worker, $directory.'/ready');
-        $runLocked = false;
-        $deadline = microtime(true) + 2;
-        while (microtime(true) < $deadline) {
-            try {
-                DB::transaction(static fn () => DB::select('select id from '.AdoptionStore::Runs.' for update nowait'));
-            } catch (QueryException $exception) {
-                if ($exception->getCode() !== '55P03') {
-                    throw $exception;
-                }
-                $runLocked = true;
+        $worker = TranslationLockWorkers::start($directory, $redis, [...$operation, 'wait_seconds' => 30]);
+        TranslationLockWorkers::awaitWorkspaceLockWait($worker, $directory);
+        try {
+            DB::transaction(static fn () => DB::select('select id from '.AdoptionStore::Runs.' for update nowait'));
+            $runLocked = false;
+        } catch (QueryException $exception) {
+            if ($exception->getCode() !== '55P03') {
+                throw $exception;
             }
-            usleep(50000);
+            $runLocked = true;
         }
-        expect($worker->isRunning())->toBeTrue('The worker finished without waiting for the workspace lock: '.$worker->getErrorOutput().$worker->getOutput());
+        expect($worker->isRunning())->toBeTrue('The worker stopped waiting for the workspace lock: '.$worker->getErrorOutput().$worker->getOutput());
         $workspace->release();
 
         return ['run_locked' => $runLocked, 'outcome' => TranslationLockWorkers::outcome($worker)];

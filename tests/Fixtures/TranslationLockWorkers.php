@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nvl\Translations\Tests\Fixtures;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redis;
 use Nvl\Support\Testing\TestServiceHosts;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -82,6 +83,37 @@ final class TranslationLockWorkers
             usleep(10000);
             clearstatcache();
         }
+    }
+
+    /**
+     * Wait until the worker has attempted the workspace lock held elsewhere and is retrying it: its named lock store
+     * client last ran the `SET NX` that acquires the lock while the worker keeps running.
+     */
+    public static function awaitWorkspaceLockWait(Process $worker, string $directory): void
+    {
+        $name = self::clientName($directory);
+        $deadline = microtime(true) + 30;
+        while (true) {
+            $worker->checkTimeout();
+            if (! $worker->isRunning()) {
+                throw new RuntimeException('A translation lock worker exited before waiting for the workspace lock with code ['.$worker->getExitCode().']: '.$worker->getErrorOutput().$worker->getOutput());
+            }
+            foreach (Redis::connection('translations_race')->client()->client('list') as $client) {
+                if (($client['name'] ?? null) === $name && ($client['cmd'] ?? null) === 'set') {
+                    return;
+                }
+            }
+            if (microtime(true) >= $deadline) {
+                throw new RuntimeException('The translation lock worker never attempted the workspace lock.');
+            }
+            usleep(20000);
+        }
+    }
+
+    /** The Redis client name of the worker that uses this barrier directory. */
+    public static function clientName(string $directory): string
+    {
+        return basename($directory);
     }
 
     /**

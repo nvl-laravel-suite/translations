@@ -55,6 +55,9 @@ final readonly class DatabaseTranslationOverrideRepository implements Translatio
         if (! mb_check_encoding($value, 'UTF-8')) {
             throw new InvalidTranslationInputException('Translation values must contain valid UTF-8 text.');
         }
+        if (str_contains($value, "\0")) {
+            throw new InvalidTranslationInputException('Translation values cannot contain NUL bytes.');
+        }
         $query = $this->query($key, $locale);
         if ($expectedRevision === 0) {
             $class = $this->models->modelClass();

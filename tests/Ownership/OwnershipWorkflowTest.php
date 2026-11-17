@@ -66,6 +66,16 @@ it('rejects invalid UTF-8 override values without changing stored revisions', fu
     });
 });
 
+it('rejects NUL-containing override values before PostgreSQL can truncate them', function (): void {
+    app(OwnershipRunner::class)->run(Company::findOrFail(7), Actor::findOrFail(1), function (): void {
+        $repository = app(TranslationOverrideRepository::class);
+        expect(fn () => $repository->set(SystemActor::Background, 'headline', 'en', "Head\0Tail", 0))->toThrow(InvalidTranslationInputException::class, 'NUL')
+            ->and(fn () => $repository->set(SystemActor::Background, 'legacy.copy', 'en', "Head\0Tail", 9))->toThrow(InvalidTranslationInputException::class, 'NUL')
+            ->and($repository->get(SystemActor::Background, 'legacy.copy', 'en'))->toBe('preserved')
+            ->and(ConfiguredOverride::query()->count())->toBe(1);
+    });
+});
+
 it('preserves configured override mutation hooks and revision checks inside the caller transaction', function (): void {
     app(OwnershipRunner::class)->run(Company::findOrFail(7), Actor::findOrFail(1), function (): void {
         ConfiguredOverride::updating(static function (TranslationOverride $model): void {

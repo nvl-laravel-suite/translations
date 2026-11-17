@@ -126,6 +126,9 @@ final class TranslationCatalog
         if ($data['value'] !== null && ! mb_check_encoding($data['value'], 'UTF-8')) {
             throw new InvalidTranslationInputException('Translation values must contain valid UTF-8 text.');
         }
+        if ($data['value'] !== null && str_contains($data['value'], "\0")) {
+            throw new InvalidTranslationInputException('Translation values cannot contain NUL bytes.');
+        }
 
         return ['value' => $data['value'], 'expected_revision' => $data['expected_revision']];
     }

@@ -560,6 +560,56 @@ PHP);
         ->and(app(TranslationCatalog::class)->unused(SystemActor::Background, ['app'])['total'])->toBe(0);
 });
 
+test('default scanner patterns capture template literals and named key arguments', function (): void {
+    $codeRoot = $this->regressionRoot.'/code';
+    File::ensureDirectoryExists($codeRoot);
+    File::put($codeRoot.'/Example.php', <<<'PHP'
+<?php
+
+__(key: 'Named helper');
+trans_choice(key: 'Named choice', number: 2);
+Lang::get(key: 'Named facade');
+PHP);
+    File::put($codeRoot.'/Example.ts', <<<'JS'
+t(`Template`)
+$t(`Dollar template`)
+t(`Hello ${name}`)
+JS);
+    $keys = ['Named helper', 'Named choice', 'Named facade', 'Template', 'Dollar template'];
+    File::put($this->regressionSource.'/en.json', json_encode(array_combine($keys, $keys), JSON_THROW_ON_ERROR));
+    app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
+
+    app(TranslationScanner::class)->scan(SystemActor::Background);
+    $recorded = TranslationUsage::query()->pluck('full_key')->all();
+    sort($recorded);
+    sort($keys);
+
+    expect($recorded)->toBe($keys)
+        ->and(app(TranslationCatalog::class)->unused(SystemActor::Background, ['app'])['total'])->toBe(0);
+});
+
+test('rejects NUL-containing keys and values that a database could truncate', function (): void {
+    File::put($this->regressionSource.'/en.json', json_encode(['Kept' => 'Kept', "Key\0Tail" => 'Value', 'Value' => "Head\0Tail"], JSON_THROW_ON_ERROR));
+    File::ensureDirectoryExists($this->regressionSource.'/en');
+    File::put($this->regressionSource.'/en/messages.php', "<?php\n\nreturn ['kept' => 'Kept', \"key\\0tail\" => 'Value', 'value' => \"Head\\0Tail\"];\n");
+
+    expect(fn () => app(TranslationImporter::class)->import(SystemActor::Background, ['app']))
+        ->toThrow(TranslationsException::class, 'NUL-containing translation key')
+        ->and(TranslationEntry::query()->count())->toBe(0);
+
+    config(['nvl-translations.import.fail_on_error' => false]);
+    $result = app(TranslationImporter::class)->import(SystemActor::Background, ['app']);
+    $entry = TranslationEntry::query()->where('key', 'Kept')->sole();
+
+    expect(TranslationEntry::query()->orderBy('key')->pluck('key')->all())->toBe(['Kept', 'kept'])
+        ->and(implode("\n", $result['warnings']))->toContain('NUL')
+        ->and(fn () => app(TranslationCatalog::class)->update(SystemActor::Background, $entry, [
+            'value' => "Head\0Tail",
+            'expected_revision' => $entry->revision,
+        ]))->toThrow(InvalidTranslationInputException::class, 'NUL')
+        ->and($entry->fresh()->value)->toBe('Kept');
+});
+
 test('the unused command says when no completed scan backs its report', function (): void {
     File::put($this->regressionSource.'/en.json', '{"Save":"Save"}');
     app(TranslationImporter::class)->import(SystemActor::Background, ['app'], 'json');
