@@ -5,12 +5,20 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+## [7.4.0] - 2026-11-17
+
 ### Fixed
 
 - Import, catalog edits and owner overrides reject translation keys and values containing a NUL byte (an import reports a warning and, with `import.fail_on_error`, stops). PostgreSQL silently truncated them at the NUL.
 - The default scanner patterns also record keys written as JavaScript template literals without `${` (`` t(`Save`) ``) and PHP named key arguments (`__(key: 'Save')`, `trans_choice(key: ...)`, `Lang::get(key: ...)`); such keys were reported unused. The README now states the exact PHP group-key rule the scanner applies.
 
 - A workspace operation inside a nested transaction keeps the workspace lock after that nested transaction commits, until the outer transaction commits or rolls back; a later operation in the outer transaction no longer releases and re-acquires it while PostgreSQL still holds the committed savepoint's row locks.
+
+<!-- NVL GENERATED CHANGES START -->
+### Changed
+
+- consumer-audit fixes across the suite, UTC timestamps, core/forms release ordering
+<!-- NVL GENERATED CHANGES END -->
 
 ## [7.3.0] - 2026-11-17
 
