@@ -5,6 +5,10 @@ All notable changes to `nvl/translations` are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- The workspace lease taken inside a savepoint is released when any enclosing transaction rolls back and on the outermost commit. Early Laravel 13 releases dropped a committed savepoint's callbacks when its parent savepoint rolled back, so the lease stayed held until `nvl-translations.lock.seconds` expired.
+
 ## [7.4.0] - 2026-11-17
 
 ### Fixed

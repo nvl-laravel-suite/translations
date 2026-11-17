@@ -116,3 +116,30 @@ it('releases the workspace lease when the outer transaction rolls back after an 
         ->and($entry->fresh()?->value)->toBe('Save');
     $lease->release();
 });
+
+it('releases the workspace lease taken in a committed savepoint whose parent savepoint rolls back', function (): void {
+    $entry = TranslationEntry::query()->sole();
+    $catalog = app(TranslationCatalog::class);
+    $lease = Cache::store('translations_race')->lock('nvl:translations:workspace', 5);
+
+    DB::beginTransaction();
+    try {
+        DB::beginTransaction();
+        DB::beginTransaction();
+        $catalog->update(SystemActor::Background, $entry->id, ['value' => 'Discarded', 'expected_revision' => $entry->revision]);
+        DB::commit();
+        DB::rollBack();
+
+        // The outer transaction edits again after the savepoint that held the lease was discarded.
+        $catalog->update(SystemActor::Background, $entry->id, ['value' => 'Outer', 'expected_revision' => $entry->revision]);
+        DB::commit();
+    } finally {
+        if (DB::transactionLevel() > 0) {
+            DB::rollBack(0);
+        }
+    }
+
+    expect($lease->get())->toBeTrue('The workspace lease leaked past the outer commit.')
+        ->and($entry->fresh()?->value)->toBe('Outer');
+    $lease->release();
+});

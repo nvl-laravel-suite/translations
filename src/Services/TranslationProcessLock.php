@@ -78,8 +78,16 @@ final class TranslationProcessLock
             }
         };
         $this->held[$connection] = ['lock' => $lock, 'transaction' => $transaction];
-        $transaction->addCallback($release);
-        $transaction->addCallbackForRollback($release);
+        // Release on the outermost commit, and on a rollback of any transaction from this one outward: early Laravel 13
+        // releases drop a committed savepoint's callbacks without running them when its parent savepoint rolls back.
+        $outer = $this->outermost($transaction);
+        $outer->addCallback($release);
+        for ($record = $transaction; ; $record = $record->parent) {
+            $record->addCallbackForRollback($release);
+            if ($record === $outer) {
+                break;
+            }
+        }
 
         return $callback();
     }
